@@ -1,0 +1,27 @@
+{
+  "name": "@sparfuchs/data-pipeline",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "clean": "rm -rf dist",
+    "run:once": "tsx src/run.ts",
+    "fetch:rewe": "tsx src/sources/rewe.ts",
+    "fetch:lidl": "tsx src/sources/lidl.ts"
+  },
+  "dependencies": {
+    "@sparfuchs/shared": "workspace:*",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}
