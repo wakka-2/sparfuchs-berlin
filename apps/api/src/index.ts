@@ -3,10 +3,17 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+import productsRoutes from "./routes/products.js";
+import categoriesRoutes from "./routes/categories.js";
+import storesRoutes from "./routes/stores.js";
+import basketRoutes from "./routes/basket.js";
+import healthRoutes from "./routes/health.js";
+
 const app = new Hono().basePath("/api/v1");
 
-// Middleware
+// ── Middleware ────────────────────────────────────
 app.use("*", logger());
+
 app.use(
   "*",
   cors({
@@ -14,31 +21,27 @@ app.use(
   }),
 );
 
-// Health check
-app.get("/health", (c) => {
-  return c.json({
-    success: true,
-    data: {
-      status: "healthy",
-      version: "0.0.1",
-      timestamp: new Date().toISOString(),
+// ── Global error handler ─────────────────────────
+app.onError((err, c) => {
+  console.error(`[api] Unhandled error: ${err.message}`, err.stack);
+  return c.json(
+    {
+      success: false,
+      error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" },
+      meta: { timestamp: new Date().toISOString() },
     },
-  });
+    500,
+  );
 });
 
-// Placeholder routes (will be implemented in Stage 4)
-app.get("/products", (c) => {
-  return c.json({ success: true, data: { products: [] }, meta: { pagination: { page: 1, limit: 20, total_items: 0, total_pages: 0 } } });
-});
+// ── Routes ───────────────────────────────────────
+app.route("/products", productsRoutes);
+app.route("/categories", categoriesRoutes);
+app.route("/stores", storesRoutes);
+app.route("/basket", basketRoutes);
+app.route("/health", healthRoutes);
 
-app.get("/categories", (c) => {
-  return c.json({ success: true, data: { categories: [] } });
-});
-
-app.get("/stores", (c) => {
-  return c.json({ success: true, data: { stores: [] } });
-});
-
+// ── Server ───────────────────────────────────────
 const port = Number(process.env.PORT) || 3001;
 
 serve({ fetch: app.fetch, port }, (info) => {
