@@ -1,9 +1,12 @@
 /**
- * Pipeline entry point — runs a single data ingestion cycle.
- * Implemented in Stage 3 (feature/pipeline-runner).
+ * Pipeline one-shot runner.
+ * Usage: pnpm --filter data-pipeline run:once
  */
 
-console.log("[pipeline] Starting data ingestion...");
-console.log("[pipeline] REWE fetch: not implemented yet (Stage 3)");
-console.log("[pipeline] Lidl fetch: not implemented yet (Stage 3)");
-console.log("[pipeline] Done.");
+import { runOnce } from "./runner.js";
+import { ReweSource } from "./sources/rewe.js";
+import { LidlSource } from "./sources/lidl.js";
+
+const sources = [new ReweSource(), new LidlSource()];
+
+runOnce(sources);

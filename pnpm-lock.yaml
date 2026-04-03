@@ -118,12 +118,21 @@ importers:
 
   packages/data-pipeline:
     dependencies:
+      '@sparfuchs/api':
+        specifier: workspace:*
+        version: link:../../apps/api
       '@sparfuchs/shared':
         specifier: workspace:*
         version: link:../shared
+      drizzle-orm:
+        specifier: ^0.40.0
+        version: 0.40.1(gel@2.2.0)(postgres@3.4.8)
       node-cron:
         specifier: ^3.0.3
         version: 3.0.3
+      postgres:
+        specifier: ^3.4.0
+        version: 3.4.8
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

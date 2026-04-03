@@ -10,12 +10,16 @@
     "test": "vitest run",
     "clean": "rm -rf dist",
     "run:once": "tsx src/run.ts",
+    "start:cron": "tsx src/scheduler.ts",
     "fetch:rewe": "tsx src/sources/rewe.ts",
     "fetch:lidl": "tsx src/sources/lidl.ts"
   },
   "dependencies": {
+    "@sparfuchs/api": "workspace:*",
     "@sparfuchs/shared": "workspace:*",
-    "node-cron": "^3.0.3"
+    "drizzle-orm": "^0.40.0",
+    "node-cron": "^3.0.3",
+    "postgres": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
