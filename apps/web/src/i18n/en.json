@@ -1,0 +1,66 @@
+{
+  "common": {
+    "prices": "Prices",
+    "list": "List",
+    "info": "Info",
+    "search": "Search",
+    "searchPlaceholder": "Search products... e.g. milk, butter",
+    "allProducts": "All Products",
+    "categories": "Categories",
+    "all": "All",
+    "products": "Products",
+    "loading": "Loading...",
+    "noResults": "No results found.",
+    "tryDifferent": "Try a different search term.",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "home": "Home",
+    "back": "Back"
+  },
+  "home": {
+    "title": "Compare Supermarket Prices",
+    "subtitle": "Find the cheapest prices in Berlin — REWE, Lidl and more.",
+    "noProducts": "No products available yet."
+  },
+  "product": {
+    "noPrices": "No prices available",
+    "cheaper": "Cheaper",
+    "unit": "Unit",
+    "priceComparison": "Price Comparison",
+    "viewInShop": "View in shop",
+    "updated": "Updated",
+    "addToList": "+ Add to list",
+    "onList": "✓ On list",
+    "notAvailable": "Not available"
+  },
+  "basket": {
+    "title": "Shopping List",
+    "empty": "Shopping list is empty",
+    "emptyHint": "Add products to compare prices.",
+    "browseProducts": "Browse products",
+    "clearList": "Clear list",
+    "priceComparison": "Price Comparison",
+    "cheapest": "Cheapest",
+    "available": "of {{total}} products available",
+    "savings": "You save up to {{amount}}",
+    "items": "{{count}} items",
+    "onList": "on the list",
+    "goToList": "Go to shopping list"
+  },
+  "search": {
+    "resultsFor": "Results for",
+    "from": "from",
+    "at": "at",
+    "showAll": "Show all results"
+  },
+  "footer": {
+    "disclaimer": "Prices from rewe.de and lidl.de. No guarantee — prices may differ in-store.",
+    "impressum": "Legal Notice",
+    "privacy": "Privacy Policy"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "Page not found.",
+    "goHome": "Go to homepage"
+  }
+}

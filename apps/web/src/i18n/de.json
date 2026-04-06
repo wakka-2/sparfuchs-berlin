@@ -1,0 +1,66 @@
+{
+  "common": {
+    "prices": "Preise",
+    "list": "Liste",
+    "info": "Info",
+    "search": "Suchen",
+    "searchPlaceholder": "Produkt suchen... z.B. Milch, Butter",
+    "allProducts": "Alle Produkte",
+    "categories": "Kategorien",
+    "all": "Alle",
+    "products": "Produkte",
+    "loading": "Wird geladen...",
+    "noResults": "Keine Ergebnisse gefunden.",
+    "tryDifferent": "Versuche es mit einem anderen Suchbegriff.",
+    "error": "Etwas ist schiefgelaufen",
+    "retry": "Erneut versuchen",
+    "home": "Startseite",
+    "back": "Zurück"
+  },
+  "home": {
+    "title": "Supermarkt-Preise vergleichen",
+    "subtitle": "Finde die günstigsten Preise in Berlin — REWE, Lidl und mehr.",
+    "noProducts": "Noch keine Produkte vorhanden."
+  },
+  "product": {
+    "noPrices": "Keine Preise verfügbar",
+    "cheaper": "Günstiger",
+    "unit": "Einheit",
+    "priceComparison": "Preisvergleich",
+    "viewInShop": "Im Shop ansehen",
+    "updated": "Aktualisiert",
+    "addToList": "+ Zur Liste",
+    "onList": "✓ Auf der Liste",
+    "notAvailable": "Nicht verfügbar"
+  },
+  "basket": {
+    "title": "Einkaufsliste",
+    "empty": "Einkaufsliste ist leer",
+    "emptyHint": "Füge Produkte hinzu, um Preise zu vergleichen.",
+    "browseProducts": "Produkte ansehen",
+    "clearList": "Liste leeren",
+    "priceComparison": "Preisvergleich",
+    "cheapest": "Günstigster",
+    "available": "von {{total}} Produkten verfügbar",
+    "savings": "Du sparst bis zu {{amount}}",
+    "items": "{{count}} Artikel",
+    "onList": "auf der Liste",
+    "goToList": "Zur Einkaufsliste"
+  },
+  "search": {
+    "resultsFor": "Suchergebnisse für",
+    "from": "ab",
+    "at": "bei",
+    "showAll": "Alle Ergebnisse anzeigen"
+  },
+  "footer": {
+    "disclaimer": "Preise von rewe.de und lidl.de. Angaben ohne Gewähr — Preise können im Laden abweichen.",
+    "impressum": "Impressum",
+    "privacy": "Datenschutz"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "Seite nicht gefunden.",
+    "goHome": "Zur Startseite"
+  }
+}

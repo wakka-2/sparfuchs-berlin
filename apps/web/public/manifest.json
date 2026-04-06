@@ -1,0 +1,27 @@
+{
+  "name": "Sparfuchs Berlin",
+  "short_name": "Sparfuchs",
+  "description": "Supermarkt-Preise vergleichen in Berlin",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#15803d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "finance"],
+  "lang": "de",
+  "dir": "ltr"
+}

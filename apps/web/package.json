@@ -14,9 +14,12 @@
   },
   "dependencies": {
     "@sparfuchs/shared": "workspace:*",
+    "i18next": "^26.0.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-i18next": "^17.0.2",
     "react-router": "^7.5.0",
+    "vite-plugin-pwa": "^1.2.0",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

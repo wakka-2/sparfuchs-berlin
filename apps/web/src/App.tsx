@@ -1,4 +1,5 @@
 import { Routes, Route, Link, useLocation } from "react-router";
+import { useTranslation } from "react-i18next";
 import { HomePage } from "./pages/HomePage";
 import { CategoryPage } from "./pages/CategoryPage";
 import { ProductPage } from "./pages/ProductPage";
@@ -9,6 +10,7 @@ import { ImpressumPage } from "./pages/ImpressumPage";
 import { DatenschutzPage } from "./pages/DatenschutzPage";
 import { SearchBar } from "./components/SearchBar";
 import { BasketSummary } from "./components/BasketSummary";
+import { LanguageToggle } from "./components/LanguageToggle";
 
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   const location = useLocation();
@@ -26,6 +28,8 @@ function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
 }
 
 export function App() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-gray-50 pb-16 text-gray-900">
       {/* Header */}
@@ -38,10 +42,11 @@ export function App() {
           <div className="hidden flex-1 sm:block">
             <SearchBar />
           </div>
-          <nav className="flex shrink-0 gap-3">
-            <NavLink to="/">Preise</NavLink>
-            <NavLink to="/liste">Liste</NavLink>
-            <NavLink to="/ueber-uns">Info</NavLink>
+          <nav className="flex shrink-0 items-center gap-3">
+            <NavLink to="/">{t("common.prices")}</NavLink>
+            <NavLink to="/liste">{t("common.list")}</NavLink>
+            <NavLink to="/ueber-uns">{t("common.info")}</NavLink>
+            <LanguageToggle />
           </nav>
         </div>
         {/* Mobile search bar */}
@@ -65,10 +70,10 @@ export function App() {
             path="*"
             element={
               <div className="py-12 text-center">
-                <h1 className="text-2xl font-bold">404</h1>
-                <p className="mt-2 text-gray-500">Seite nicht gefunden.</p>
+                <h1 className="text-2xl font-bold">{t("notFound.title")}</h1>
+                <p className="mt-2 text-gray-500">{t("notFound.message")}</p>
                 <Link to="/" className="mt-4 inline-block text-green-700 hover:underline">
-                  Zur Startseite
+                  {t("notFound.goHome")}
                 </Link>
               </div>
             }
@@ -79,16 +84,13 @@ export function App() {
       {/* Footer */}
       <footer className="border-t border-gray-200 bg-white py-6">
         <div className="mx-auto max-w-5xl px-4 text-center text-xs text-gray-500">
-          <p>
-            Preise von rewe.de und lidl.de. Angaben ohne Gewähr — Preise können
-            im Laden abweichen.
-          </p>
+          <p>{t("footer.disclaimer")}</p>
           <div className="mt-2 flex justify-center gap-4">
-            <Link to="/ueber-uns" className="hover:text-green-700">Info</Link>
+            <Link to="/ueber-uns" className="hover:text-green-700">{t("common.info")}</Link>
             <span className="text-gray-300">|</span>
-            <Link to="/impressum" className="hover:text-green-700">Impressum</Link>
+            <Link to="/impressum" className="hover:text-green-700">{t("footer.impressum")}</Link>
             <span className="text-gray-300">|</span>
-            <Link to="/datenschutz" className="hover:text-green-700">Datenschutz</Link>
+            <Link to="/datenschutz" className="hover:text-green-700">{t("footer.privacy")}</Link>
           </div>
         </div>
       </footer>
