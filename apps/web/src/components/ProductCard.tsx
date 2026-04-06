@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import type { Product } from "../lib/api";
 import { PriceTag } from "./PriceTag";
 import { SavingsBadge } from "./SavingsBadge";
+import { AddToListButton } from "./AddToListButton";
 
 interface ProductCardProps {
   product: Product;
@@ -44,6 +45,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
       {/* Savings badge */}
       {product.savings && <SavingsBadge savings={product.savings} />}
+
+      {/* Add to list */}
+      <div className="mt-3">
+        <AddToListButton productId={product.id} productName={product.name} />
+      </div>
     </Link>
   );
 }

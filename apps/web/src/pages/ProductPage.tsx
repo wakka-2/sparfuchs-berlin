@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router";
 import { fetchProduct } from "../lib/api";
 import { useApi } from "../hooks/useApi";
 import { SavingsBadge } from "../components/SavingsBadge";
+import { AddToListButton } from "../components/AddToListButton";
 import { ErrorState } from "../components/ErrorState";
 
 export function ProductPage() {
@@ -69,6 +70,11 @@ export function ProductPage() {
 
           {/* Savings badge */}
           {product.savings && <SavingsBadge savings={product.savings} />}
+
+          {/* Add to list */}
+          <div className="max-w-xs">
+            <AddToListButton productId={product.id} productName={product.name} />
+          </div>
         </div>
       </div>
 
