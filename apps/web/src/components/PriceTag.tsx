@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { StorePrice } from "../lib/api";
 
 interface PriceTagProps {
@@ -5,6 +6,8 @@ interface PriceTagProps {
 }
 
 export function PriceTag({ price }: PriceTagProps) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="flex flex-col items-center rounded-lg border-2 px-3 py-2"
@@ -20,7 +23,7 @@ export function PriceTag({ price }: PriceTagProps) {
       <span className="text-xs text-gray-500">{price.unit_price_formatted}</span>
       {price.is_cheapest && (
         <span className="mt-1 rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
-          Günstiger
+          {t("product.cheaper")}
         </span>
       )}
     </div>

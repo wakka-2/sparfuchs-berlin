@@ -9,6 +9,7 @@
     "categories": "Kategorien",
     "all": "Alle",
     "products": "Produkte",
+    "productCount": "{{count}} Produkte",
     "loading": "Wird geladen...",
     "noResults": "Keine Ergebnisse gefunden.",
     "tryDifferent": "Versuche es mit einem anderen Suchbegriff.",
@@ -22,6 +23,9 @@
     "subtitle": "Finde die günstigsten Preise in Berlin — REWE, Lidl und mehr.",
     "noProducts": "Noch keine Produkte vorhanden."
   },
+  "category": {
+    "noProducts": "Keine Produkte in dieser Kategorie."
+  },
   "product": {
     "noPrices": "Keine Preise verfügbar",
     "cheaper": "Günstiger",
@@ -31,7 +35,8 @@
     "updated": "Aktualisiert",
     "addToList": "+ Zur Liste",
     "onList": "✓ Auf der Liste",
-    "notAvailable": "Nicht verfügbar"
+    "notAvailable": "Nicht verfügbar",
+    "notAvailableList": "Nicht verfügbar: {{products}}"
   },
   "basket": {
     "title": "Einkaufsliste",
@@ -41,11 +46,14 @@
     "clearList": "Liste leeren",
     "priceComparison": "Preisvergleich",
     "cheapest": "Günstigster",
-    "available": "von {{total}} Produkten verfügbar",
+    "available": "{{available}} von {{total}} Produkten verfügbar",
     "savings": "Du sparst bis zu {{amount}}",
     "items": "{{count}} Artikel",
     "onList": "auf der Liste",
-    "goToList": "Zur Einkaufsliste"
+    "goToList": "Zur Einkaufsliste",
+    "decreaseQty": "Menge verringern",
+    "increaseQty": "Menge erhöhen",
+    "removeItem": "{{name}} entfernen"
   },
   "search": {
     "resultsFor": "Suchergebnisse für",

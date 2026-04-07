@@ -9,6 +9,7 @@
     "categories": "Categories",
     "all": "All",
     "products": "Products",
+    "productCount": "{{count}} products",
     "loading": "Loading...",
     "noResults": "No results found.",
     "tryDifferent": "Try a different search term.",
@@ -22,6 +23,9 @@
     "subtitle": "Find the cheapest prices in Berlin — REWE, Lidl and more.",
     "noProducts": "No products available yet."
   },
+  "category": {
+    "noProducts": "No products in this category."
+  },
   "product": {
     "noPrices": "No prices available",
     "cheaper": "Cheaper",
@@ -31,7 +35,8 @@
     "updated": "Updated",
     "addToList": "+ Add to list",
     "onList": "✓ On list",
-    "notAvailable": "Not available"
+    "notAvailable": "Not available",
+    "notAvailableList": "Not available: {{products}}"
   },
   "basket": {
     "title": "Shopping List",
@@ -41,11 +46,14 @@
     "clearList": "Clear list",
     "priceComparison": "Price Comparison",
     "cheapest": "Cheapest",
-    "available": "of {{total}} products available",
+    "available": "{{available}} of {{total}} products available",
     "savings": "You save up to {{amount}}",
     "items": "{{count}} items",
     "onList": "on the list",
-    "goToList": "Go to shopping list"
+    "goToList": "Go to shopping list",
+    "decreaseQty": "Decrease quantity",
+    "increaseQty": "Increase quantity",
+    "removeItem": "Remove {{name}}"
   },
   "search": {
     "resultsFor": "Results for",

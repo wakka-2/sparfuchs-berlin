@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import type { Product } from "../lib/api";
 import { PriceTag } from "./PriceTag";
 import { SavingsBadge } from "./SavingsBadge";
@@ -9,6 +10,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { t } = useTranslation();
+
   return (
     <Link
       to={`/produkt/${product.id}`}
@@ -40,7 +43,7 @@ export function ProductCard({ product }: ProductCardProps) {
           ))}
         </div>
       ) : (
-        <p className="mb-2 text-sm text-gray-400">Keine Preise verfügbar</p>
+        <p className="mb-2 text-sm text-gray-400">{t("product.noPrices")}</p>
       )}
 
       {/* Savings badge */}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { searchProducts, type SearchResult } from "../lib/api";
 
 function formatCents(cents: number): string {
@@ -16,6 +17,7 @@ export function SearchBar() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -90,9 +92,9 @@ export function SearchBar() {
           }}
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Produkt suchen..."
+          placeholder={t("common.searchPlaceholder")}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
-          aria-label="Produkt suchen"
+          aria-label={t("common.search")}
           aria-expanded={open}
           aria-autocomplete="list"
           role="combobox"
@@ -123,7 +125,7 @@ export function SearchBar() {
                 <span className="font-medium">{result.name}</span>
                 {result.cheapest_price_cents != null && (
                   <span className="text-xs text-green-700">
-                    ab {formatCents(result.cheapest_price_cents)}
+                    {t("search.from")} {formatCents(result.cheapest_price_cents)}
                   </span>
                 )}
               </div>
@@ -137,7 +139,7 @@ export function SearchBar() {
               }}
               className="w-full text-left text-xs text-green-700 hover:underline"
             >
-              Alle Ergebnisse anzeigen
+              {t("search.showAll")}
             </button>
           </li>
         </ul>
