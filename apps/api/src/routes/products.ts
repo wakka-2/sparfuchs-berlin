@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { listProducts, getProductById, searchProducts } from "../services/product.service.js";
+import { getProductPriceHistory } from "../services/history.service.js";
 import { success, error } from "../lib/response.js";
 
 const app = new Hono();
@@ -65,6 +66,25 @@ app.get("/:id", async (c) => {
   }
 
   return success(c, product);
+});
+
+// GET /products/:id/history
+app.get("/:id/history", async (c) => {
+  const id = c.req.param("id");
+  const limit = Number(c.req.query("limit") ?? "50");
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return error(c, 400, "VALIDATION_ERROR", "Invalid product ID format");
+  }
+
+  const result = await getProductPriceHistory(id, limit);
+
+  if (!result) {
+    return error(c, 404, "NOT_FOUND", "Product not found");
+  }
+
+  return success(c, result);
 });
 
 export default app;

@@ -4,6 +4,7 @@ import { fetchProduct } from "../lib/api";
 import { useApi } from "../hooks/useApi";
 import { SavingsBadge } from "../components/SavingsBadge";
 import { AddToListButton } from "../components/AddToListButton";
+import { PriceHistory } from "../components/PriceHistory";
 import { ErrorState } from "../components/ErrorState";
 
 export function ProductPage() {
@@ -116,6 +117,12 @@ export function ProductPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Price history */}
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">{t("history.title")}</h2>
+        <PriceHistory productId={product.id} />
       </section>
     </div>
   );

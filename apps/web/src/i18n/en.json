@@ -61,6 +61,14 @@
     "at": "at",
     "showAll": "Show all results"
   },
+  "history": {
+    "title": "Price History",
+    "price": "Price",
+    "from": "From",
+    "until": "Until",
+    "current": "Current",
+    "noData": "No price history available yet."
+  },
   "footer": {
     "disclaimer": "Prices from rewe.de and lidl.de. No guarantee — prices may differ in-store.",
     "impressum": "Legal Notice",

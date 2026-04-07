@@ -61,6 +61,14 @@
     "at": "bei",
     "showAll": "Alle Ergebnisse anzeigen"
   },
+  "history": {
+    "title": "Preisverlauf",
+    "price": "Preis",
+    "from": "Seit",
+    "until": "Bis",
+    "current": "Aktuell",
+    "noData": "Noch kein Preisverlauf vorhanden."
+  },
   "footer": {
     "disclaimer": "Preise von rewe.de und lidl.de. Angaben ohne Gewähr — Preise können im Laden abweichen.",
     "impressum": "Impressum",

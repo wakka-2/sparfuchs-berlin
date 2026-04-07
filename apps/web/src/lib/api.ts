@@ -103,6 +103,26 @@ export async function fetchProduct(id: string) {
   return res.data;
 }
 
+export interface PriceHistoryEntry {
+  store_slug: string;
+  store_name: string;
+  store_color: string | null;
+  price_cents: number;
+  price_formatted: string;
+  unit_price_cents: number;
+  valid_from: string;
+  valid_until: string | null;
+}
+
+export async function fetchProductHistory(id: string) {
+  const res = await apiFetch<{
+    success: true;
+    data: { product_id: string; history: PriceHistoryEntry[] };
+  }>(`/products/${id}/history`);
+
+  return res.data.history;
+}
+
 export async function searchProducts(query: string, limit = 10) {
   const res = await apiFetch<{
     success: true;
