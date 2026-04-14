@@ -33,6 +33,9 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): UseA
     return () => {
       cancelled = true;
     };
+    // `deps` is intentionally a forwarded dependency array — callers are
+    // responsible for memoizing values they pass in. ESLint cannot statically
+    // verify a dynamic array, so the exhaustive-deps rule is suppressed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 

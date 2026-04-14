@@ -13,10 +13,18 @@ export function ProductCard({ product }: ProductCardProps) {
   const { t } = useTranslation();
 
   return (
-    <Link
-      to={`/produkt/${product.id}`}
-      className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md"
-    >
+    // Outer div is `relative` so the overlay Link can be `absolute inset-0`.
+    // AddToListButton sits above the overlay via `relative z-10` — this avoids
+    // nesting an interactive <button> inside an <a>, which is invalid HTML and
+    // breaks keyboard / assistive-technology navigation.
+    <div className="relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+      {/* Full-card navigation link — sits below the button layer */}
+      <Link
+        to={`/produkt/${product.id}`}
+        className="absolute inset-0 rounded-xl"
+        aria-label={product.name}
+      />
+
       {/* Product image */}
       <div className="mb-3 flex h-24 items-center justify-center rounded-lg bg-gray-100">
         {product.image_url ? (
@@ -27,7 +35,7 @@ export function ProductCard({ product }: ProductCardProps) {
             loading="lazy"
           />
         ) : (
-          <span className="text-3xl text-gray-300">📦</span>
+          <span className="text-3xl text-gray-300" aria-hidden="true">📦</span>
         )}
       </div>
 
@@ -49,10 +57,10 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Savings badge */}
       {product.savings && <SavingsBadge savings={product.savings} />}
 
-      {/* Add to list */}
-      <div className="mt-3">
+      {/* Add to list — relative + z-10 places it above the overlay Link */}
+      <div className="relative z-10 mt-3">
         <AddToListButton productId={product.id} productName={product.name} />
       </div>
-    </Link>
+    </div>
   );
 }
