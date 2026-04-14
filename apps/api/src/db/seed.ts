@@ -194,7 +194,18 @@ export async function seed() {
   await sql.end();
 }
 
-seed().catch((err) => {
-  console.error("[seed] Failed:", err);
-  process.exit(1);
-});
+// Only run automatically when executed directly (e.g. `node dist/db/seed.js`).
+// When imported as a module from start-production.ts, this guard prevents
+// the double-execution that would otherwise fire on dynamic import.
+import { fileURLToPath } from "node:url";
+
+const isMain =
+  typeof process.argv[1] === "string" &&
+  process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  seed().catch((err) => {
+    console.error("[seed] Failed:", err);
+    process.exit(1);
+  });
+}

@@ -74,6 +74,20 @@
     "impressum": "Legal Notice",
     "privacy": "Privacy Policy"
   },
+  "about": {
+    "title": "About Sparfuchs Berlin",
+    "intro": "Sparfuchs Berlin compares regular shelf prices at Berlin supermarkets. No promotional flyers — real prices, updated daily.",
+    "dataSources": "Data Sources",
+    "dataSourcesText": "Prices are fetched from rewe.de and lidl.de and updated automatically every day at 05:00 and 05:30 CET.",
+    "disclaimer": "Disclaimer",
+    "disclaimerText": "All prices are provided without guarantee. Actual in-store prices may differ. This is not an official service of REWE or Lidl.",
+    "feedback": "Feedback",
+    "feedbackText": "Found a bug or have a suggestion? We'd love to hear from you:",
+    "openSource": "Open Source",
+    "openSourceText": "Sparfuchs Berlin is open source. The full code is available at",
+    "version": "Version",
+    "versionDate": "April 2026"
+  },
   "notFound": {
     "title": "404",
     "message": "Page not found.",
