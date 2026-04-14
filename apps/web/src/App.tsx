@@ -11,6 +11,7 @@ import { DatenschutzPage } from "./pages/DatenschutzPage";
 import { SearchBar } from "./components/SearchBar";
 import { BasketSummary } from "./components/BasketSummary";
 import { LanguageToggle } from "./components/LanguageToggle";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
   const location = useLocation();
@@ -57,6 +58,7 @@ export function App() {
 
       {/* Main content */}
       <main className="mx-auto max-w-5xl px-4 py-6">
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/kategorie/:slug" element={<CategoryPage />} />
@@ -79,6 +81,7 @@ export function App() {
             }
           />
         </Routes>
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
