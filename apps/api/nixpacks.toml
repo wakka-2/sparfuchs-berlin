@@ -1,0 +1,14 @@
+# Railway deployment configuration for apps/api
+# https://nixpacks.com/docs/configuration/file
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm install -g pnpm@10 && pnpm install --frozen-lockfile --filter @sparfuchs/api..."]
+
+[phases.build]
+cmds = ["pnpm --filter @sparfuchs/api build"]
+
+[start]
+cmd = "pnpm --filter @sparfuchs/api start:prod"

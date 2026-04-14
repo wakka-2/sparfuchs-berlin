@@ -51,6 +51,18 @@ packages/
 - **Pipeline**: Pepesto API (REWE), Apify (Lidl), node-cron
 - **Tooling**: Turborepo, Vitest, ESLint, Prettier
 
+## Deployment
+
+| Service | Provider | URL |
+|---------|----------|-----|
+| Frontend | Vercel | https://sparfuchs-berlin.de |
+| API | Railway | https://api.sparfuchs-berlin.de |
+| Database | Railway PostgreSQL | (private) |
+| Cache | Railway Redis | (private) |
+
+Pushes to `main` trigger the [deploy workflow](.github/workflows/deploy.yml) automatically.
+See [docs/deployment.md](docs/deployment.md) for the full setup guide.
+
 ## License
 
 Private project.
