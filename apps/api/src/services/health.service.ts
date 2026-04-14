@@ -1,6 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { stores, pipelineRuns } from "../db/schema.js";
+import { isCacheConnected } from "../lib/cache.js";
 
 export async function getHealthStatus() {
   const storeRows = await db.select().from(stores).where(eq(stores.isActive, true));
@@ -46,5 +47,8 @@ export async function getHealthStatus() {
     version: "1.0.0",
     stores: storeStatus,
     database: "connected",
+    cache: isCacheConnected() ? "connected" : "unavailable",
+    uptime_seconds: Math.floor(process.uptime()),
+    environment: process.env.NODE_ENV ?? "development",
   };
 }

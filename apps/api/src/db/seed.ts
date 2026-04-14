@@ -3,7 +3,7 @@ import postgres from "postgres";
 const connectionString =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/sparfuchs";
 
-async function seed() {
+export async function seed() {
   const sql = postgres(connectionString);
 
   console.log("[seed] Seeding database...");
