@@ -10,6 +10,7 @@ import basketRoutes from "./routes/basket.js";
 import healthRoutes from "./routes/health.js";
 import { rateLimit } from "./middleware/rate-limit.js";
 import { closeCache } from "./lib/cache.js";
+import { initMonitoring, captureException } from "./lib/monitoring.js";
 
 const app = new Hono().basePath("/api/v1");
 
@@ -34,7 +35,7 @@ app.use(
 
 // ── Global error handler ─────────────────────────
 app.onError((err, c) => {
-  console.error(`[api] Unhandled error: ${err.message}`, err.stack);
+  captureException(err, { url: c.req.url, method: c.req.method });
   return c.json(
     {
       success: false,
@@ -54,6 +55,9 @@ app.route("/health", healthRoutes);
 
 // ── Server ───────────────────────────────────────
 const port = Number(process.env.PORT) || 3001;
+
+// Initialize monitoring before starting the server (async, non-blocking)
+initMonitoring().catch((err) => console.warn("[api] Monitoring init failed:", err));
 
 const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[api] Server running at http://localhost:${info.port}`);

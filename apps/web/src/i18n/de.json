@@ -74,6 +74,20 @@
     "impressum": "Impressum",
     "privacy": "Datenschutz"
   },
+  "about": {
+    "title": "Über Sparfuchs Berlin",
+    "intro": "Sparfuchs Berlin vergleicht reguläre Regalpreise von Berliner Supermärkten. Keine Werbeflyer — echte Preise, täglich aktualisiert.",
+    "dataSources": "Datenquellen",
+    "dataSourcesText": "Die Preise stammen von rewe.de und lidl.de und werden täglich automatisch um 05:00 und 05:30 Uhr MEZ abgerufen.",
+    "disclaimer": "Haftungsausschluss",
+    "disclaimerText": "Alle Preisangaben ohne Gewähr. Die tatsächlichen Preise im Geschäft können abweichen. Dies ist kein offizieller Dienst von REWE oder Lidl.",
+    "feedback": "Feedback",
+    "feedbackText": "Fehler gefunden oder einen Vorschlag? Wir freuen uns über Rückmeldungen:",
+    "openSource": "Open Source",
+    "openSourceText": "Sparfuchs Berlin ist Open Source. Der vollständige Code ist verfügbar auf",
+    "version": "Version",
+    "versionDate": "April 2026"
+  },
   "notFound": {
     "title": "404",
     "message": "Seite nicht gefunden.",
