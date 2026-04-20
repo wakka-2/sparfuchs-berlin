@@ -7,6 +7,16 @@ settings:
 importers:
 
   .:
+    dependencies:
+      drizzle-orm:
+        specifier: ^0.40.0
+        version: 0.40.1(gel@2.2.0)(pg@8.20.0)(postgres@3.4.8)
+      hono:
+        specifier: ^4.7.0
+        version: 4.12.9
+      postgres:
+        specifier: ^3.4.0
+        version: 3.4.8
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
