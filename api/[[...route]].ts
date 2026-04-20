@@ -5,7 +5,7 @@
  * Runtime: nodejs20.x (set in vercel.json)
  */
 import { handle } from "hono/vercel";
-import app from "../apps/api/src/index.js";
+import app from "../apps/api/src/app.js";
 
 export const config = {
   maxDuration: 30,
