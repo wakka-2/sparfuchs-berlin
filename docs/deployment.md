@@ -57,7 +57,8 @@ APIFY_LIDL_ACTOR_ID easyapi/lidl-product-scraper
 1. Add another service from the same repo
 2. Set **Start Command** to: `pnpm --filter @sparfuchs/data-pipeline start:cron`
 3. Set the same environment variables as the API service
-4. This service runs indefinitely and triggers at 05:00 + 05:30 CET
+4. This service runs indefinitely — on startup it runs once immediately, then daily at **05:00 CET**
+5. Optional: set `PIPELINE_CRON` env var to override the schedule (default: `0 5 * * *`)
 
 ---
 

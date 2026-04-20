@@ -1,45 +1,57 @@
 /**
  * Cron-based pipeline scheduler.
- * Usage: pnpm --filter data-pipeline start:cron
+ * Usage: pnpm --filter @sparfuchs/data-pipeline start:cron
  *
- * Default schedule:
- *   REWE: 05:00 CET daily
- *   Lidl: 05:30 CET daily
+ * Runs all stores once daily at 05:00 CET.
+ * Override via env var: PIPELINE_CRON  (default: "0 5 * * *")
  *
- * Override via env vars: PIPELINE_CRON_REWE, PIPELINE_CRON_LIDL
+ * On startup it also runs the pipeline immediately so prices are fresh
+ * even if the service was just deployed.
  */
 
 import cron from "node-cron";
-import { runPipelineForStore } from "./runner.js";
+import { runFullPipeline } from "./runner.js";
+import { closeDb } from "./db.js";
 import { ReweSource } from "./sources/rewe.js";
 import { LidlSource } from "./sources/lidl.js";
+import { PennySource } from "./sources/penny.js";
+import { AldiNordSource } from "./sources/aldi.js";
+import { KauflandSource } from "./sources/kaufland.js";
 
-const REWE_CRON = process.env.PIPELINE_CRON_REWE ?? "0 5 * * *";
-const LIDL_CRON = process.env.PIPELINE_CRON_LIDL ?? "30 5 * * *";
+const CRON_SCHEDULE = process.env.PIPELINE_CRON ?? "0 5 * * *";
 
-const reweSource = new ReweSource();
-const lidlSource = new LidlSource();
+const sources = [
+  new ReweSource(),
+  new LidlSource(),
+  new PennySource(),
+  new AldiNordSource(),
+  new KauflandSource(),
+];
+
+async function runPipeline() {
+  console.log(`[scheduler] Pipeline triggered at ${new Date().toISOString()}`);
+  try {
+    await runFullPipeline(sources);
+  } catch (err) {
+    console.error("[scheduler] Pipeline error:", err instanceof Error ? err.message : String(err));
+  }
+}
 
 console.log("[scheduler] Starting pipeline scheduler...");
-console.log(`[scheduler] REWE schedule: ${REWE_CRON}`);
-console.log(`[scheduler] Lidl schedule: ${LIDL_CRON}`);
+console.log(`[scheduler] Schedule: ${CRON_SCHEDULE} (Europe/Berlin)`);
+console.log(`[scheduler] Stores: ${sources.map((s) => s.storeSlug).join(", ")}`);
 
-cron.schedule(
-  REWE_CRON,
-  async () => {
-    console.log(`[scheduler] REWE pipeline triggered at ${new Date().toISOString()}`);
-    await runPipelineForStore(reweSource);
-  },
-  { timezone: "Europe/Berlin" },
-);
+// Run immediately on startup so prices are populated right away
+runPipeline();
 
-cron.schedule(
-  LIDL_CRON,
-  async () => {
-    console.log(`[scheduler] Lidl pipeline triggered at ${new Date().toISOString()}`);
-    await runPipelineForStore(lidlSource);
-  },
-  { timezone: "Europe/Berlin" },
-);
+// Then schedule daily at 05:00 CET
+cron.schedule(CRON_SCHEDULE, runPipeline, { timezone: "Europe/Berlin" });
 
-console.log("[scheduler] Scheduler running. Waiting for next cron trigger...");
+console.log("[scheduler] Scheduler running. Next run at 05:00 CET.");
+
+// Keep process alive
+process.on("SIGTERM", async () => {
+  console.log("[scheduler] SIGTERM received — shutting down.");
+  await closeDb();
+  process.exit(0);
+});

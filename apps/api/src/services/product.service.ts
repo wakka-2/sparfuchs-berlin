@@ -145,7 +145,16 @@ export async function listProducts(params: ListProductsParams) {
     .from(products)
     .innerJoin(categories, eq(categories.id, products.categoryId))
     .where(and(...conditions))
-    .orderBy(asc(products.nameDe))
+    .orderBy(
+      // Products with at least one price sort first (NULLS LAST = no price = end)
+      sql`(
+        SELECT MIN(p2.price_cents)
+        FROM prices p2
+        INNER JOIN product_matches pm2 ON pm2.id = p2.product_match_id
+        WHERE pm2.product_id = ${products.id} AND pm2.is_active = true
+      ) NULLS LAST`,
+      asc(products.nameDe),
+    )
     .limit(limit)
     .offset(offset);
 

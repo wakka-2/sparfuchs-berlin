@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { normalizePrice } from "./normalizer/index.js";
 import type { StoreSource, PipelineRunResult } from "./types.js";
@@ -78,6 +78,26 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
         }
 
         fetched++;
+
+        // Enrich product_match with external identifiers from the API response
+        await db
+          .update(schema.productMatches)
+          .set({
+            externalProductId: raw.externalId || undefined,
+            externalName: raw.name || undefined,
+            ean: raw.ean || undefined,
+            externalUrl: raw.url || undefined,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.productMatches.id, match.matchId));
+
+        // Write image_url to the product — only if it's still null (don't overwrite manually curated URLs)
+        if (raw.imageUrl) {
+          await db
+            .update(schema.products)
+            .set({ imageUrl: raw.imageUrl })
+            .where(and(eq(schema.products.id, match.productId), isNull(schema.products.imageUrl)));
+        }
 
         // Normalize
         const normalized = normalizePrice(raw, match.matchId, match.defaultUnit);

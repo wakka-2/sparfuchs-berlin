@@ -82,11 +82,13 @@ export async function fetchProducts(params?: {
   category?: string;
   page?: number;
   limit?: number;
+  sort?: "name" | "price_asc" | "price_desc" | "savings";
 }) {
   const searchParams = new URLSearchParams();
   if (params?.category) searchParams.set("category", params.category);
   if (params?.page) searchParams.set("page", String(params.page));
   if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.sort) searchParams.set("sort", params.sort);
 
   const qs = searchParams.toString();
   const res = await apiFetch<{
