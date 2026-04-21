@@ -56,8 +56,9 @@ export function HomePage() {
         <ErrorState message={prodError} />
       ) : (
         (() => {
-          const withPrices = productsData?.products.filter((p) => p.prices.length > 0) ?? [];
-          if (withPrices.length === 0) {
+          const allProducts = productsData?.products ?? [];
+          const withPrices = allProducts.filter((p) => p.prices.length > 0);
+          if (allProducts.length === 0) {
             return <p className="text-center text-gray-500">{t("home.noProducts")}</p>;
           }
 
@@ -66,9 +67,9 @@ export function HomePage() {
             name: string;
             icon: string | null;
             sortOrder: number;
-            products: typeof withPrices;
+            products: typeof allProducts;
           }>();
-          for (const product of withPrices) {
+          for (const product of allProducts) {
             const slug = product.category.slug;
             if (!grouped.has(slug)) {
               const cat = categoriesData?.find((c) => c.slug === slug);
@@ -95,7 +96,7 @@ export function HomePage() {
               {/* Weekly summary bar */}
               <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-50 px-4 py-2.5">
                 <span className="text-sm font-bold text-gray-800">
-                  {withPrices.length} Angebote diese Woche
+                  {withPrices.length} von {allProducts.length} Produkten mit Preisen
                 </span>
                 <span className="text-gray-300">·</span>
                 <div className="flex flex-wrap gap-1.5">
