@@ -10,6 +10,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/[[...route]]"
+    },
+    {
       "source": "/((?!assets|api|manifest\\.json|sw\\.js|workbox-.*).*)",
       "destination": "/index.html"
     }
