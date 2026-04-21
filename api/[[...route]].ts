@@ -4,15 +4,13 @@
  */
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
-import app from "../apps/api/src/app.js";
 
-// Tiny inline ping so we can diagnose load vs DB issues
-const wrapper = new Hono();
-wrapper.get("/api/ping", (c) => c.json({ ok: true, ts: Date.now() }));
-wrapper.route("/", app);
+// Test: completely self-contained, no DB imports
+const app = new Hono();
+app.get("/api/ping", (c) => c.json({ ok: true, ts: Date.now() }));
 
 export const config = {
   maxDuration: 30,
 };
 
-export default handle(wrapper);
+export default handle(app);
