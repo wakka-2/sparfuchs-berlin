@@ -49,6 +49,6 @@ export async function getHealthStatus() {
     database: "connected",
     cache: isCacheConnected() ? "connected" : "unavailable",
     uptime_seconds: Math.floor(process.uptime()),
-    environment: process.env.NODE_ENV ?? "development",
+    environment: (process.env.NODE_ENV ?? "development").trim(),
   };
 }

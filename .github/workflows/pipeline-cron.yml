@@ -1,0 +1,40 @@
+name: Daily Price Pipeline
+
+on:
+  schedule:
+    # Every day at 05:00 CET (04:00 UTC)
+    - cron: "0 4 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  run-pipeline:
+    name: Fetch store prices
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @sparfuchs/data-pipeline exec playwright install chromium --with-deps
+
+      - name: Run price pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
+        run: pnpm --filter @sparfuchs/data-pipeline run:once
