@@ -21,6 +21,7 @@
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
+import { getFallbackPrice } from "./fallback-prices.js";
 
 const OFFERS_URL = "https://filiale.kaufland.de/angebote/uebersicht.html";
 
@@ -196,6 +197,18 @@ export class KauflandSource implements StoreSource {
       const offers = await this.getOffers(page);
       const match = bestMatch(productName, offers);
       if (!match) {
+        const fallback = getFallbackPrice(productName, "kaufland", OFFERS_URL);
+        if (fallback) {
+          console.log(`[kaufland] "${productName}" → fallback price @ ${fallback.price} €`);
+          return {
+            externalId: "",
+            name: productName,
+            price: fallback.price,
+            currency: "EUR",
+            unitSize: fallback.unitSize,
+            url: fallback.url,
+          };
+        }
         console.warn(`[kaufland] No offer match for "${productName}"`);
         return null;
       }
@@ -240,7 +253,20 @@ export class KauflandSource implements StoreSource {
             url: OFFERS_URL,
           });
         } else {
-          console.warn(`[kaufland] No offer match for "${product.productName}"`);
+          const fallback = getFallbackPrice(product.productName, "kaufland", OFFERS_URL);
+          if (fallback) {
+            console.log(`[kaufland] "${product.productName}" → fallback price @ ${fallback.price} €`);
+            results.push({
+              externalId: "",
+              name: product.productName,
+              price: fallback.price,
+              currency: "EUR",
+              unitSize: fallback.unitSize,
+              url: fallback.url,
+            });
+          } else {
+            console.warn(`[kaufland] No offer match for "${product.productName}"`);
+          }
         }
       }
       return results;
