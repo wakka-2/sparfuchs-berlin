@@ -18,7 +18,9 @@
     "@hono/node-server": "^1.19.0",
     "drizzle-orm": "^0.40.0",
     "hono": "^4.7.0",
-    "postgres": "^3.4.0"
+    "ioredis": "^5.6.0",
+    "postgres": "^3.4.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

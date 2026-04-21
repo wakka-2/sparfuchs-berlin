@@ -1,22 +1,15 @@
 /**
- * Vercel Serverless Function — debug handler.
+ * Vercel Serverless Function — Hono API handler (Node.js runtime).
+ * Uses @hono/node-server/vercel which correctly bridges
+ * Node.js IncomingMessage/ServerResponse to Hono's fetch API.
+ *
+ * Routing: /api/(.*)  →  this function  (via vercel.json rewrite)
  */
 import { handle } from "@hono/node-server/vercel";
-import { Hono } from "hono";
-
-// Debug app: catch-all route that returns request info
-const debugApp = new Hono();
-debugApp.all("*", (c) => {
-  return c.json({
-    path: new URL(c.req.url).pathname,
-    fullUrl: c.req.url,
-    method: c.req.method,
-    headers: Object.fromEntries(c.req.raw.headers.entries()),
-  });
-});
+import app from "../apps/api/src/app.js";
 
 export const config = {
   maxDuration: 30,
 };
 
-export default handle(debugApp);
+export default handle(app);
