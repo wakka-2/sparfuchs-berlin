@@ -1,16 +1,9 @@
 /**
- * Vercel Serverless Function — Hono API handler.
- * Catches all /api/* requests and delegates to the Hono app.
+ * Vercel Serverless Function — raw Node.js handler (debug test).
  */
-import { Hono } from "hono";
-import { handle } from "hono/vercel";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-// Test: completely self-contained, no DB imports
-const app = new Hono();
-app.get("/api/ping", (c) => c.json({ ok: true, ts: Date.now() }));
-
-export const config = {
-  maxDuration: 30,
-};
-
-export default handle(app);
+export default function handler(req: IncomingMessage, res: ServerResponse) {
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify({ ok: true, url: req.url, ts: Date.now() }));
+}
