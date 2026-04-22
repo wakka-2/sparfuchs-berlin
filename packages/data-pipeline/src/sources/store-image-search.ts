@@ -67,17 +67,7 @@ const STORE_SEARCH: Record<string, StoreSearchConfig> = {
     ],
     acceptCookies: true,
   },
-  lidl: {
-    url: (name) =>
-      `https://www.lidl.de/c/suche/s10000159?query=${encodeURIComponent(name)}`,
-    imgSelectors: [
-      ".s-grid-item img",
-      ".product-tile img",
-      ".product-grid-item img",
-      "article img",
-    ],
-    acceptCookies: true,
-  },
+  // lidl: excluded — lidl.de only sells non-food items online; no grocery images available
 };
 
 async function dismissCookies(page: import("playwright").Page): Promise<void> {

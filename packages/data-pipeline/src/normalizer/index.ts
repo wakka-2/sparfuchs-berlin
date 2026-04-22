@@ -152,7 +152,7 @@ export function normalizePrice(
   return {
     productMatchId,
     priceCents,
-    unitSize: raw.unitSize || `1${defaultUnit}`,
+    unitSize: (raw.unitSize || `1${defaultUnit}`).slice(0, 50),
     unitType: displayUnitType,
     unitPriceCents,
   };
