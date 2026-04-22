@@ -12,7 +12,8 @@
     "run:once": "tsx src/run.ts",
     "start:cron": "tsx src/scheduler.ts",
     "fetch:rewe": "tsx src/sources/rewe.ts",
-    "fetch:lidl": "tsx src/sources/lidl.ts"
+    "fetch:lidl": "tsx src/sources/lidl.ts",
+    "repair:images": "tsx src/repair-images.ts"
   },
   "dependencies": {
     "@sparfuchs/api": "workspace:*",

@@ -33,40 +33,19 @@ const STORE_SEARCH: Record<string, StoreSearchConfig> = {
     ],
     acceptCookies: true,
   },
-  kaufland: {
-    url: (name) =>
-      `https://www.kaufland.de/produkte/alle-produkte/?search=${encodeURIComponent(name)}`,
-    imgSelectors: [
-      ".k-product-tile img",
-      ".product-tile img",
-      ".product-card img",
-      "article img",
-    ],
-    acceptCookies: true,
-  },
-  penny: {
-    url: (name) =>
-      `https://www.penny.de/produkte?searchTerm=${encodeURIComponent(name)}`,
-    imgSelectors: [
-      ".offer-tile img",
-      ".product-tile img",
-      ".plp-product img",
-      ".product-item img",
-      "article img",
-    ],
-    acceptCookies: true,
-  },
   "aldi-nord": {
     url: (name) =>
-      `https://www.aldi-nord.de/suche.html?query=${encodeURIComponent(name)}`,
+      `https://www.aldi-nord.de/suchergebnisse.html?query=${encodeURIComponent(name)}`,
     imgSelectors: [
+      ".product-tile__image-section img",
       ".product-tile img",
-      ".product-grid-item img",
-      ".search-results img",
+      ".tile-grid img",
       "article img",
     ],
     acceptCookies: true,
   },
+  // penny: excluded — penny.de renders via client-side JS; headless Playwright finds no search inputs
+  // kaufland: excluded — kaufland.de actively blocks headless browsers (Zugriff blockiert)
   // lidl: excluded — lidl.de only sells non-food items online; no grocery images available
 };
 
