@@ -13,6 +13,7 @@ interface StorePrice {
   store_slug: string;
   store_name: string;
   store_color: string | null;
+  store_image_url: string | null;
   price_cents: number;
   price_formatted: string;
   unit_size: string;
@@ -47,6 +48,7 @@ function buildPriceList(
     storeSlug: string;
     storeName: string;
     storeColor: string | null;
+    storeImageUrl?: string | null;
     priceCents: number;
     unitSize: string;
     unitType: string;
@@ -70,6 +72,7 @@ function buildPriceList(
       store_slug: p.storeSlug,
       store_name: p.storeName,
       store_color: p.storeColor,
+      store_image_url: p.storeImageUrl ?? null,
       price_cents: p.priceCents,
       price_formatted: formatCents(p.priceCents),
       unit_size: p.unitSize,
@@ -170,6 +173,7 @@ export async function listProducts(params: ListProductsParams) {
       storeSlug: stores.slug,
       storeName: stores.name,
       storeColor: stores.colorHex,
+      storeImageUrl: productMatches.imageUrl,
       priceCents: prices.priceCents,
       unitSize: prices.unitSize,
       unitType: prices.unitType,
@@ -242,6 +246,7 @@ export async function getProductById(id: string, lang: string) {
       storeSlug: stores.slug,
       storeName: stores.name,
       storeColor: stores.colorHex,
+      storeImageUrl: productMatches.imageUrl,
       priceCents: prices.priceCents,
       unitSize: prices.unitSize,
       unitType: prices.unitType,

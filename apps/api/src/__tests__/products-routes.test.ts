@@ -49,6 +49,7 @@ const SAMPLE_PRODUCT = {
       unit_price_cents: 119,
       unit_price_formatted: "1,19 €/L",
       fetched_at: "2026-04-14T05:00:00.000Z",
+      store_image_url: null,
       is_cheapest: false,
     },
     {
@@ -61,6 +62,7 @@ const SAMPLE_PRODUCT = {
       unit_price_cents: 99,
       unit_price_formatted: "0,99 €/L",
       fetched_at: "2026-04-14T05:30:00.000Z",
+      store_image_url: null,
       is_cheapest: true,
     },
   ],

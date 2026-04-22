@@ -22,6 +22,13 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const cheapestPrice = product.prices.find((p) => p.is_cheapest) ?? product.prices[0];
 
+  // Best image: cheapest store's per-store image, then any store image, then product-level image
+  const heroImage =
+    cheapestPrice?.store_image_url ??
+    product.prices.find((p) => p.store_image_url)?.store_image_url ??
+    product.image_url ??
+    null;
+
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md">
       {/* Savings badge */}
@@ -33,15 +40,15 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       )}
 
-      {/* Image */}
+      {/* Image — navigates to product detail */}
       <Link
         to={`/produkt/${product.id}`}
         className="flex h-40 items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500"
         tabIndex={0}
       >
-        {product.image_url ? (
+        {heroImage ? (
           <img
-            src={product.image_url}
+            src={heroImage}
             alt={product.name}
             className="h-full w-auto max-w-full object-contain p-4 transition-transform duration-200 group-hover:scale-105"
             loading="lazy"
@@ -66,7 +73,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </Link>
 
-        {/* Price rows */}
+        {/* Price rows — one per store */}
         <div className="mt-auto space-y-1">
           {product.prices.length > 0 ? (
             <>
@@ -75,20 +82,33 @@ export function ProductCard({ product }: ProductCardProps) {
                 return (
                   <div
                     key={price.store_slug}
-                    className={`flex items-center gap-2 rounded-xl px-3 py-2 ${
+                    className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 ${
                       isCheapest ? "bg-green-50 ring-1 ring-inset ring-green-200" : "bg-gray-50"
                     }`}
                   >
-                    {/* Store dot */}
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: price.store_color ?? "#888" }}
-                      aria-hidden="true"
-                    />
+                    {/* Per-store product thumbnail */}
+                    {price.store_image_url ? (
+                      <img
+                        src={price.store_image_url}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-6 w-6 shrink-0 rounded object-contain bg-white"
+                        loading="lazy"
+                      />
+                    ) : (
+                      /* Store colour dot fallback */
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: price.store_color ?? "#888" }}
+                        aria-hidden="true"
+                      />
+                    )}
+
                     {/* Store name */}
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-500">
                       {price.store_name}
                     </span>
+
                     {/* Price */}
                     <span
                       className={`shrink-0 text-sm font-extrabold tabular-nums ${
@@ -97,6 +117,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     >
                       {price.price_formatted}
                     </span>
+
                     {/* Cheapest label */}
                     {isCheapest && (
                       <span className="shrink-0 rounded-full bg-green-600 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
@@ -107,7 +128,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 );
               })}
 
-              {/* Unit price */}
+              {/* Unit price of cheapest option */}
               {cheapestPrice?.unit_price_formatted && (
                 <p className="pt-0.5 text-right text-[11px] tabular-nums text-gray-400">
                   {cheapestPrice.unit_price_formatted}

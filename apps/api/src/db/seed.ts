@@ -97,7 +97,7 @@ export async function seed() {
   `;
   const storeIds: Record<string, string> = {};
   for (const row of storeRows) storeIds[row.slug] = row.id;
-  console.log(`[seed] Stores: ${storeRows.map((r: { slug: string }) => r.slug).join(', ')}`);
+  console.log(`[seed] Stores: ${storeRows.map((r) => (r as { slug: string }).slug).join(', ')}`);
 
   // ── Categories ───────────────────────────────────────────────────────────
   const categoryRows = await sql`

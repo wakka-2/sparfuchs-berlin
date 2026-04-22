@@ -100,6 +100,7 @@ export const productMatches = pgTable(
     externalName: varchar("external_name", { length: 300 }),
     ean: varchar("ean", { length: 20 }),
     externalUrl: varchar("external_url", { length: 500 }),
+    imageUrl: varchar("image_url", { length: 500 }),
     matchConfidence: numeric("match_confidence", { precision: 3, scale: 2 })
       .notNull()
       .default("1.00"),

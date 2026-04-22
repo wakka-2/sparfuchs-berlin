@@ -21,6 +21,7 @@ export interface StorePrice {
   store_slug: string;
   store_name: string;
   store_color: string | null;
+  store_image_url: string | null;
   price_cents: number;
   price_formatted: string;
   unit_size: string;

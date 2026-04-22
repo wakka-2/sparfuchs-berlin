@@ -1,6 +1,7 @@
 import { eq, and, isNull } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { normalizePrice } from "./normalizer/index.js";
+import { fetchStoreProductImage } from "./sources/store-image-search.js";
 import type { StoreSource, PipelineRunResult } from "./types.js";
 
 /**
@@ -48,6 +49,7 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
         matchId: schema.productMatches.id,
         productId: schema.productMatches.productId,
         externalProductId: schema.productMatches.externalProductId,
+        matchImageUrl: schema.productMatches.imageUrl,
         productName: schema.products.nameDe,
         defaultUnit: schema.products.defaultUnit,
       })
@@ -79,7 +81,17 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
 
         fetched++;
 
-        // Enrich product_match with external identifiers from the API response
+        // Resolve per-store image: use scraped image, or search for one if still missing
+        let storeImageUrl = raw.imageUrl ?? null;
+        if (!storeImageUrl && !match.matchImageUrl) {
+          // No image from offer scraper and none previously stored — try a product search
+          storeImageUrl = await fetchStoreProductImage(source.storeSlug, match.productName);
+        } else if (!storeImageUrl && match.matchImageUrl) {
+          // Keep existing stored image
+          storeImageUrl = match.matchImageUrl;
+        }
+
+        // Enrich product_match with external identifiers and per-store image
         await db
           .update(schema.productMatches)
           .set({
@@ -87,15 +99,16 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
             externalName: raw.name || undefined,
             ean: raw.ean || undefined,
             externalUrl: raw.url || undefined,
+            imageUrl: storeImageUrl ?? undefined,
             updatedAt: new Date(),
           })
           .where(eq(schema.productMatches.id, match.matchId));
 
-        // Write image_url to the product — only if it's still null (don't overwrite manually curated URLs)
-        if (raw.imageUrl) {
+        // Also write to product-level image if still null (first store to find an image wins)
+        if (storeImageUrl) {
           await db
             .update(schema.products)
-            .set({ imageUrl: raw.imageUrl })
+            .set({ imageUrl: storeImageUrl })
             .where(and(eq(schema.products.id, match.productId), isNull(schema.products.imageUrl)));
         }
 
