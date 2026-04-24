@@ -9,7 +9,8 @@ interface AddToListButtonProps {
 
 export function AddToListButton({ productId, productName, compact }: AddToListButtonProps) {
   const { t } = useTranslation();
-  const items = useBasketStore((s) => s.items);
+  const rawItems = useBasketStore((s) => s.items);
+  const items = Array.isArray(rawItems) ? rawItems : [];
   const addItem = useBasketStore((s) => s.addItem);
   const removeItem = useBasketStore((s) => s.removeItem);
 

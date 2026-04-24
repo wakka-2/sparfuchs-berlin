@@ -69,11 +69,12 @@ export function HomePage() {
           }>();
 
           for (const product of allProducts) {
-            const slug = product.category.slug;
+            const slug = product.category?.slug;
+            if (!slug) continue;
             if (!grouped.has(slug)) {
               const cat = categoriesData?.find((c) => c.slug === slug);
               grouped.set(slug, {
-                name: product.category.name,
+                name: product.category?.name ?? slug,
                 icon: cat?.icon ?? null,
                 sortOrder: cat?.sort_order ?? 99,
                 products: [],

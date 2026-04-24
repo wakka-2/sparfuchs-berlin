@@ -4,7 +4,8 @@ import { useBasketStore } from "../stores/basket";
 
 export function BasketSummary() {
   const { t } = useTranslation();
-  const items = useBasketStore((s) => s.items);
+  const rawItems = useBasketStore((s) => s.items);
+  const items = Array.isArray(rawItems) ? rawItems : [];
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 
   if (items.length === 0) return null;

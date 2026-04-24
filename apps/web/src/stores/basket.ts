@@ -52,10 +52,20 @@ export const useBasketStore = create<BasketState>()(
 
       clear: () => set({ items: [] }),
 
-      getItemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+      getItemCount: () => {
+        const items = get().items;
+        return Array.isArray(items) ? items.reduce((sum, i) => sum + i.quantity, 0) : 0;
+      },
     }),
     {
       name: "sparfuchs-basket",
+      merge: (persisted, current) => {
+        const p = persisted as Partial<BasketState> | null;
+        return {
+          ...current,
+          items: Array.isArray(p?.items) ? p.items : [],
+        };
+      },
     },
   ),
 );
