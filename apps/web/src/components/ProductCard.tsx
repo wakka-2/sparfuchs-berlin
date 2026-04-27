@@ -86,8 +86,8 @@ export function ProductCard({ product }: ProductCardProps) {
                       isCheapest ? "bg-green-50 ring-1 ring-inset ring-green-200" : "bg-gray-50"
                     }`}
                   >
-                    {/* Per-store product thumbnail */}
-                    {price.store_image_url ? (
+                    {/* Per-store product thumbnail — only when it differs from the hero image */}
+                    {price.store_image_url && price.store_image_url !== product.image_url ? (
                       <img
                         src={price.store_image_url}
                         alt=""
@@ -96,7 +96,7 @@ export function ProductCard({ product }: ProductCardProps) {
                         loading="lazy"
                       />
                     ) : (
-                      /* Store colour dot fallback */
+                      /* Store colour dot */
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: price.store_color ?? "#888" }}
