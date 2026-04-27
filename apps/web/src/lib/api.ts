@@ -29,6 +29,7 @@ export interface StorePrice {
   unit_price_formatted: string;
   fetched_at: string;
   is_cheapest: boolean;
+  is_estimated: boolean;
   external_name?: string | null;
   external_url?: string | null;
   ean?: string | null;

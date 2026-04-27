@@ -51,6 +51,7 @@ const SAMPLE_PRODUCT = {
       fetched_at: "2026-04-14T05:00:00.000Z",
       store_image_url: null,
       is_cheapest: false,
+      is_estimated: false,
     },
     {
       store_slug: "lidl",
@@ -64,6 +65,7 @@ const SAMPLE_PRODUCT = {
       fetched_at: "2026-04-14T05:30:00.000Z",
       store_image_url: null,
       is_cheapest: true,
+      is_estimated: false,
     },
   ],
   savings: {

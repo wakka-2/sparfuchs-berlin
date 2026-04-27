@@ -199,6 +199,7 @@ export class AldiNordSource implements StoreSource {
             currency: "EUR",
             unitSize: fallback.unitSize,
             url: fallback.url,
+            isEstimated: true,
           };
         }
         console.warn(`[aldi-nord] No offer match for "${productName}"`);
@@ -213,6 +214,7 @@ export class AldiNordSource implements StoreSource {
         unitSize: match.unitSize,
         imageUrl: match.imageUrl,
         url: OFFERS_URL,
+        isEstimated: false,
       };
     } catch (err) {
       console.error(`[aldi-nord] Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -243,6 +245,7 @@ export class AldiNordSource implements StoreSource {
             unitSize: match.unitSize,
             imageUrl: match.imageUrl,
             url: OFFERS_URL,
+            isEstimated: false,
           });
         } else {
           const fallback = getFallbackPrice(product.productName, "aldi-nord", OFFERS_URL);
@@ -255,6 +258,7 @@ export class AldiNordSource implements StoreSource {
               currency: "EUR",
               unitSize: fallback.unitSize,
               url: fallback.url,
+              isEstimated: true,
             });
           } else {
             console.warn(`[aldi-nord] No offer match for "${product.productName}"`);

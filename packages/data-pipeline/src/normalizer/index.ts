@@ -155,5 +155,6 @@ export function normalizePrice(
     unitSize: (raw.unitSize || `1${defaultUnit}`).slice(0, 50),
     unitType: displayUnitType,
     unitPriceCents,
+    isEstimated: raw.isEstimated ?? false,
   };
 }

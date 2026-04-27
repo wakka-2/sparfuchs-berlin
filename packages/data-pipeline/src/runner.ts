@@ -160,6 +160,7 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
                 unitSize: normalized.unitSize,
                 unitType: normalized.unitType,
                 unitPriceCents: normalized.unitPriceCents,
+                isEstimated: normalized.isEstimated,
                 fetchedAt: now,
               })
               .where(eq(schema.prices.id, existingPrice.id));
@@ -168,10 +169,10 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
               `[pipeline] ${source.storeSlug}: "${match.productName}" price changed ${existingPrice.priceCents} → ${normalized.priceCents}`,
             );
           } else {
-            // Same price — just update fetchedAt
+            // Same price — refresh fetchedAt and re-sync isEstimated flag
             await db
               .update(schema.prices)
-              .set({ fetchedAt: now })
+              .set({ fetchedAt: now, isEstimated: normalized.isEstimated })
               .where(eq(schema.prices.id, existingPrice.id));
           }
         } else {
@@ -182,6 +183,7 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
             unitSize: normalized.unitSize,
             unitType: normalized.unitType,
             unitPriceCents: normalized.unitPriceCents,
+            isEstimated: normalized.isEstimated,
             fetchedAt: now,
           });
 

@@ -109,6 +109,16 @@ export function ProductCard({ product }: ProductCardProps) {
                       {price.store_name}
                     </span>
 
+                    {/* Estimated badge */}
+                    {price.is_estimated && (
+                      <span
+                        className="shrink-0 text-[10px] text-gray-400"
+                        title="Geschätzter Richtpreis — kein aktuelles Angebot verfügbar"
+                      >
+                        ~
+                      </span>
+                    )}
+
                     {/* Price */}
                     <span
                       className={`shrink-0 text-sm font-extrabold tabular-nums ${

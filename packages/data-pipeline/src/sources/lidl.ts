@@ -31,6 +31,7 @@ export class LidlSource implements StoreSource {
         currency: "EUR",
         unitSize: fallback.unitSize,
         url: fallback.url,
+        isEstimated: true,
       };
     }
     console.warn(`[lidl] No fallback price for "${productName}"`);

@@ -13,14 +13,15 @@ async function migrate() {
 
   console.log("[migrate] Running migrations...");
 
-  const migrationPath = join(__dirname, "migrations", "0000_init.sql");
-  const migration = readFileSync(migrationPath, "utf-8");
+  const files = ["0000_init.sql", "0001_product_match_image.sql", "0002_is_estimated.sql"];
+  for (const file of files) {
+    const migrationPath = join(__dirname, "migrations", file);
+    const migration = readFileSync(migrationPath, "utf-8");
+    await sql.unsafe(migration);
+    console.log(`[migrate] Applied: ${file}`);
+  }
 
-  await sql.unsafe(migration);
-
-  console.log("[migrate] Migration 0000_init.sql applied successfully.");
   console.log("[migrate] All migrations complete.");
-
   await sql.end();
 }
 

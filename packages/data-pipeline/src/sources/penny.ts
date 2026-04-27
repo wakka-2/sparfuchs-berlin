@@ -206,6 +206,7 @@ export class PennySource implements StoreSource {
             currency: "EUR",
             unitSize: fallback.unitSize,
             url: fallback.url,
+            isEstimated: true,
           };
         }
         console.warn(`[penny] No offer match for "${productName}"`);
@@ -220,6 +221,7 @@ export class PennySource implements StoreSource {
         unitSize: match.unitSize,
         imageUrl: match.imageUrl,
         url: OFFERS_URL,
+        isEstimated: false,
       };
     } catch (err) {
       console.error(`[penny] Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -248,6 +250,7 @@ export class PennySource implements StoreSource {
             unitSize: match.unitSize,
             imageUrl: match.imageUrl,
             url: OFFERS_URL,
+            isEstimated: false,
           });
         } else {
           const fallback = getFallbackPrice(product.productName, "penny", OFFERS_URL);
@@ -260,6 +263,7 @@ export class PennySource implements StoreSource {
               currency: "EUR",
               unitSize: fallback.unitSize,
               url: fallback.url,
+              isEstimated: true,
             });
           } else {
             console.warn(`[penny] No offer match for "${product.productName}"`);

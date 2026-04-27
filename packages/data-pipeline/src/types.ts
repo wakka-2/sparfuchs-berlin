@@ -14,6 +14,8 @@ export interface RawProductData {
   imageUrl?: string;
   ean?: string;
   url?: string;
+  /** True when the price comes from the fallback table, not a live scrape */
+  isEstimated?: boolean;
 }
 
 /** Normalized product price ready for DB upsert */
@@ -23,6 +25,7 @@ export interface NormalizedPrice {
   unitSize: string;
   unitType: string;
   unitPriceCents: number;
+  isEstimated: boolean;
 }
 
 /** Result of a single product fetch attempt */

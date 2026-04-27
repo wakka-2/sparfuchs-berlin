@@ -21,11 +21,17 @@ const DATABASE_URL =
 async function runMigrations(sql: ReturnType<typeof postgres>) {
   console.log("[startup] Running database migrations...");
 
-  const migrationPath = join(__dirname, "db", "migrations", "0000_init.sql");
-  const migration = readFileSync(migrationPath, "utf-8");
-  await sql.unsafe(migration);
+  const migrationsDir = join(__dirname, "db", "migrations");
+  // Apply all .sql files in alphabetical order — each file must be idempotent
+  const files = ["0000_init.sql", "0001_product_match_image.sql", "0002_is_estimated.sql"];
+  for (const file of files) {
+    const migrationPath = join(migrationsDir, file);
+    const migration = readFileSync(migrationPath, "utf-8");
+    await sql.unsafe(migration);
+    console.log(`[startup] Applied migration: ${file}`);
+  }
 
-  console.log("[startup] Migrations applied.");
+  console.log("[startup] All migrations applied.");
 }
 
 async function needsSeed(sql: ReturnType<typeof postgres>): Promise<boolean> {

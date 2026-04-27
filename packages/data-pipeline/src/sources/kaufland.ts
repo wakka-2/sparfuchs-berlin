@@ -207,6 +207,7 @@ export class KauflandSource implements StoreSource {
             currency: "EUR",
             unitSize: fallback.unitSize,
             url: fallback.url,
+            isEstimated: true,
           };
         }
         console.warn(`[kaufland] No offer match for "${productName}"`);
@@ -221,6 +222,7 @@ export class KauflandSource implements StoreSource {
         unitSize: match.unitSize,
         imageUrl: match.imageUrl,
         url: OFFERS_URL,
+        isEstimated: false,
       };
     } catch (err) {
       console.error(`[kaufland] Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -251,6 +253,7 @@ export class KauflandSource implements StoreSource {
             unitSize: match.unitSize,
             imageUrl: match.imageUrl,
             url: OFFERS_URL,
+            isEstimated: false,
           });
         } else {
           const fallback = getFallbackPrice(product.productName, "kaufland", OFFERS_URL);
@@ -263,6 +266,7 @@ export class KauflandSource implements StoreSource {
               currency: "EUR",
               unitSize: fallback.unitSize,
               url: fallback.url,
+              isEstimated: true,
             });
           } else {
             console.warn(`[kaufland] No offer match for "${product.productName}"`);

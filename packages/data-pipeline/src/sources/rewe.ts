@@ -215,6 +215,7 @@ export class ReweSource implements StoreSource {
             currency: "EUR",
             unitSize: fallback.unitSize,
             url: fallback.url,
+            isEstimated: true,
           };
         }
         console.warn(`[rewe] No offer match for "${productName}"`);
@@ -229,6 +230,7 @@ export class ReweSource implements StoreSource {
         unitSize: match.unitSize,
         imageUrl: match.imageUrl,
         url: match.url,
+        isEstimated: false,
       };
     } catch (err) {
       console.error(
@@ -262,6 +264,7 @@ export class ReweSource implements StoreSource {
             unitSize: match.unitSize,
             imageUrl: match.imageUrl,
             url: match.url,
+            isEstimated: false,
           });
         } else {
           const fallback = getFallbackPrice(product.productName, "rewe", OFFERS_URL);
@@ -274,6 +277,7 @@ export class ReweSource implements StoreSource {
               currency: "EUR",
               unitSize: fallback.unitSize,
               url: fallback.url,
+              isEstimated: true,
             });
           } else {
             console.warn(`[rewe] No offer match for "${product.productName}"`);

@@ -146,6 +146,7 @@ export const prices = pgTable(
     unitType: varchar("unit_type", { length: 20 }).notNull(),
     unitPriceCents: integer("unit_price_cents").notNull(),
     currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
+    isEstimated: boolean("is_estimated").notNull().default(false),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

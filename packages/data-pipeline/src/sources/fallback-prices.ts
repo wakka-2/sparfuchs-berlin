@@ -3,7 +3,11 @@
  *
  * When a scraper cannot find a product in the current week's offers,
  * it falls back to these realistic baseline prices derived from typical
- * German supermarket shelf prices (2024/2025).
+ * German supermarket shelf prices (April 2026).
+ *
+ * Note: egg prices reflect the significant supply-side impact of H5N1
+ * outbreaks in European laying flocks during 2024–2025. Coffee prices
+ * reflect the global Arabica supply shock of 2024–2025.
  *
  * Store multipliers model real-world price positioning:
  *   REWE      1.06  — full-service, premium positioning
@@ -26,65 +30,65 @@ const STORE_MULTIPLIERS: Record<StoreSlug, number> = {
 /** Base price (€) and package unit for each catalog product (keyed by nameDe). */
 const BASE_PRICES: Record<string, { price: number; unitSize: string }> = {
   // Dairy
-  "Vollmilch 3,5%":          { price: 1.09, unitSize: "je 1 l" },
-  "Fettarme Milch 1,5%":     { price: 0.99, unitSize: "je 1 l" },
-  "Butter":                   { price: 1.89, unitSize: "je 250-g-Stück" },
-  "Gouda geschnitten":        { price: 2.69, unitSize: "je 400-g-Pkg." },
-  "Mozzarella":               { price: 1.09, unitSize: "je 125-g-Kugel" },
-  "Naturjoghurt":             { price: 0.79, unitSize: "je 500-g-Becher" },
-  "Griechischer Joghurt":     { price: 1.29, unitSize: "je 400-g-Becher" },
-  "Sahne":                    { price: 1.09, unitSize: "je 200-ml-Becher" },
-  "Frischkäse":               { price: 1.19, unitSize: "je 200-g-Becher" },
+  "Vollmilch 3,5%":          { price: 1.15, unitSize: "je 1 l" },
+  "Fettarme Milch 1,5%":     { price: 1.05, unitSize: "je 1 l" },
+  "Butter":                   { price: 2.59, unitSize: "je 250-g-Stück" },
+  "Gouda geschnitten":        { price: 3.19, unitSize: "je 400-g-Pkg." },
+  "Mozzarella":               { price: 1.19, unitSize: "je 125-g-Kugel" },
+  "Naturjoghurt":             { price: 0.89, unitSize: "je 500-g-Becher" },
+  "Griechischer Joghurt":     { price: 1.59, unitSize: "je 400-g-Becher" },
+  "Sahne":                    { price: 1.19, unitSize: "je 200-ml-Becher" },
+  "Frischkäse":               { price: 1.29, unitSize: "je 200-g-Becher" },
   // Bread & Bakery
-  "Toastbrot":                { price: 1.29, unitSize: "je 500-g-Pkg." },
-  "Vollkornbrot":             { price: 1.89, unitSize: "je 500-g-Stück" },
-  "Brötchen (Aufback)":       { price: 1.09, unitSize: "je 6 Stück" },
+  "Toastbrot":                { price: 1.39, unitSize: "je 500-g-Pkg." },
+  "Vollkornbrot":             { price: 2.09, unitSize: "je 500-g-Stück" },
+  "Brötchen (Aufback)":       { price: 1.19, unitSize: "je 6 Stück" },
   // Meat & Deli
-  "Hähnchenbrust":            { price: 3.99, unitSize: "je 500-g-Pkg." },
-  "Hackfleisch gemischt":     { price: 3.49, unitSize: "je 400-g-Pkg." },
-  "Salami":                   { price: 1.79, unitSize: "je 100-g-Pkg." },
-  "Kochschinken":             { price: 1.89, unitSize: "je 150-g-Pkg." },
+  "Hähnchenbrust":            { price: 4.79, unitSize: "je 500-g-Pkg." },
+  "Hackfleisch gemischt":     { price: 3.99, unitSize: "je 400-g-Pkg." },
+  "Salami":                   { price: 1.99, unitSize: "je 100-g-Pkg." },
+  "Kochschinken":             { price: 2.09, unitSize: "je 150-g-Pkg." },
   // Fruits
-  "Bananen":                  { price: 1.79, unitSize: "je 1 kg" },
-  "Äpfel":                    { price: 2.49, unitSize: "je 1,5-kg-Beutel" },
-  "Trauben":                  { price: 2.99, unitSize: "je 500-g-Schale" },
-  "Zitronen":                 { price: 0.29, unitSize: "je Stück" },
-  "Erdbeeren":                { price: 2.49, unitSize: "je 500-g-Schale" },
+  "Bananen":                  { price: 1.89, unitSize: "je 1 kg" },
+  "Äpfel":                    { price: 2.79, unitSize: "je 1,5-kg-Beutel" },
+  "Trauben":                  { price: 3.29, unitSize: "je 500-g-Schale" },
+  "Zitronen":                 { price: 0.39, unitSize: "je Stück" },
+  "Erdbeeren":                { price: 2.99, unitSize: "je 500-g-Schale" },
   // Vegetables
-  "Tomaten":                  { price: 1.99, unitSize: "je 500-g-Schale" },
-  "Gurke":                    { price: 0.79, unitSize: "je Stück" },
-  "Paprika":                  { price: 0.89, unitSize: "je Stück" },
-  "Kartoffeln":               { price: 1.99, unitSize: "je 1,5-kg-Beutel" },
-  "Zwiebeln":                 { price: 1.49, unitSize: "je 1-kg-Beutel" },
-  "Karotten":                 { price: 1.49, unitSize: "je 1-kg-Beutel" },
-  "Eisbergsalat":             { price: 0.89, unitSize: "je Stück" },
+  "Tomaten":                  { price: 2.29, unitSize: "je 500-g-Schale" },
+  "Gurke":                    { price: 0.99, unitSize: "je Stück" },
+  "Paprika":                  { price: 1.19, unitSize: "je Stück" },
+  "Kartoffeln":               { price: 2.19, unitSize: "je 1,5-kg-Beutel" },
+  "Zwiebeln":                 { price: 1.59, unitSize: "je 1-kg-Beutel" },
+  "Karotten":                 { price: 1.59, unitSize: "je 1-kg-Beutel" },
+  "Eisbergsalat":             { price: 0.99, unitSize: "je Stück" },
   // Beverages
-  "Mineralwasser 1,5L":       { price: 0.39, unitSize: "je 1,5-l-Fl." },
-  "Orangensaft":              { price: 1.49, unitSize: "je 1-l-Karton" },
-  "Apfelsaft":                { price: 1.29, unitSize: "je 1-l-Karton" },
-  "Kaffee Filterkaffee":      { price: 4.99, unitSize: "je 500-g-Pkg." },
-  "Schwarzer Tee":            { price: 2.49, unitSize: "je 25 Beutel" },
+  "Mineralwasser 1,5L":       { price: 0.49, unitSize: "je 1,5-l-Fl." },
+  "Orangensaft":              { price: 1.69, unitSize: "je 1-l-Karton" },
+  "Apfelsaft":                { price: 1.49, unitSize: "je 1-l-Karton" },
+  "Kaffee Filterkaffee":      { price: 6.99, unitSize: "je 500-g-Pkg." },
+  "Schwarzer Tee":            { price: 2.79, unitSize: "je 25 Beutel" },
   // Pantry
-  "Spaghetti":                { price: 1.49, unitSize: "je 500-g-Pkg." },
-  "Reis":                     { price: 1.79, unitSize: "je 1-kg-Pkg." },
-  "Mehl":                     { price: 1.09, unitSize: "je 1-kg-Pkg." },
-  "Zucker":                   { price: 1.49, unitSize: "je 1-kg-Pkg." },
-  "Sonnenblumenöl":           { price: 1.99, unitSize: "je 1-l-Fl." },
-  "Passierte Tomaten":        { price: 0.89, unitSize: "je 500-ml-Pkg." },
-  "Müsli":                    { price: 2.49, unitSize: "je 500-g-Pkg." },
+  "Spaghetti":                { price: 1.59, unitSize: "je 500-g-Pkg." },
+  "Reis":                     { price: 2.09, unitSize: "je 1-kg-Pkg." },
+  "Mehl":                     { price: 1.19, unitSize: "je 1-kg-Pkg." },
+  "Zucker":                   { price: 1.59, unitSize: "je 1-kg-Pkg." },
+  "Sonnenblumenöl":           { price: 2.19, unitSize: "je 1-l-Fl." },
+  "Passierte Tomaten":        { price: 0.99, unitSize: "je 500-ml-Pkg." },
+  "Müsli":                    { price: 2.69, unitSize: "je 500-g-Pkg." },
   // Frozen
-  "TK-Pizza":                 { price: 2.99, unitSize: "je 350-g-Pkg." },
-  "TK-Erbsen":                { price: 1.49, unitSize: "je 750-g-Beutel" },
-  "Fischstäbchen":            { price: 2.99, unitSize: "je 450-g-Pkg." },
-  "TK-Spinat":                { price: 1.79, unitSize: "je 750-g-Beutel" },
-  // Eggs
-  "Eier Freilandhaltung 10er": { price: 2.99, unitSize: "10 Stück" },
-  "Eier Bodenhaltung 10er":    { price: 1.99, unitSize: "10 Stück" },
+  "TK-Pizza":                 { price: 3.49, unitSize: "je 350-g-Pkg." },
+  "TK-Erbsen":                { price: 1.59, unitSize: "je 750-g-Beutel" },
+  "Fischstäbchen":            { price: 3.29, unitSize: "je 450-g-Pkg." },
+  "TK-Spinat":                { price: 1.99, unitSize: "je 750-g-Beutel" },
+  // Eggs — updated to reflect H5N1-driven supply shock (2024–2025)
+  "Eier Freilandhaltung 10er": { price: 3.79, unitSize: "10 Stück" },
+  "Eier Bodenhaltung 10er":    { price: 2.59, unitSize: "10 Stück" },
   // Household
-  "Spülmittel":               { price: 1.49, unitSize: "je 500-ml-Fl." },
-  "Toilettenpapier":          { price: 3.99, unitSize: "je 8-Rollen-Pkg." },
-  "Küchenrolle":              { price: 2.29, unitSize: "je 3-Rollen-Pkg." },
-  "Waschmittel":              { price: 4.99, unitSize: "je 1,5-l-Fl." },
+  "Spülmittel":               { price: 1.69, unitSize: "je 500-ml-Fl." },
+  "Toilettenpapier":          { price: 4.49, unitSize: "je 8-Rollen-Pkg." },
+  "Küchenrolle":              { price: 2.49, unitSize: "je 3-Rollen-Pkg." },
+  "Waschmittel":              { price: 5.49, unitSize: "je 1,5-l-Fl." },
 };
 
 /**
