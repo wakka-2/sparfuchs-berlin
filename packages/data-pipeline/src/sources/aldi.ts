@@ -144,18 +144,24 @@ function nameSimilarity(a: string, b: string): number {
       .replace(/[^a-z0-9äöüß\s]/g, " ")
       .split(/\s+/)
       .filter((w) => w.length > 2);
-  const wa = new Set(normalise(a));
-  const wb = normalise(b);
-  if (wa.size === 0 || wb.length === 0) return 0;
+  const catalogWords = normalise(a);
+  const offerWords = new Set(normalise(b));
+  if (catalogWords.length === 0) return 0;
   let matches = 0;
-  for (const w of wb) if (wa.has(w)) matches++;
-  return matches / Math.max(wa.size, wb.length);
+  for (const w of catalogWords) if (offerWords.has(w)) matches++;
+  return matches / catalogWords.length;
+}
+
+function isIngredientOnly(offerName: string, catalogName: string): boolean {
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
+  return new RegExp(`\\b(mit|aus)\\b.*\\b${n(catalogName)}\\b`).test(n(offerName));
 }
 
 function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | null {
   let best: ScrapedOffer | null = null;
-  let bestScore = 0.15;
+  let bestScore = 0.65;
   for (const offer of offers) {
+    if (isIngredientOnly(offer.name, productName)) continue;
     const score = nameSimilarity(productName, offer.name);
     if (score > bestScore) {
       bestScore = score;

@@ -150,15 +150,27 @@ function nameSimilarity(a: string, b: string): number {
       .split(/\s+/)
       .filter((w) => w.length > 2);
 
-  const wa = new Set(normalise(a));
-  const wb = normalise(b);
-  if (wa.size === 0 || wb.length === 0) return 0;
+  // Score = what fraction of the catalog product's words appear in the offer name.
+  // This prevents a single shared word (e.g. "Kaffee") from matching unrelated offers.
+  const catalogWords = normalise(a);
+  const offerWords = new Set(normalise(b));
+  if (catalogWords.length === 0) return 0;
 
   let matches = 0;
-  for (const w of wb) {
-    if (wa.has(w)) matches++;
+  for (const w of catalogWords) {
+    if (offerWords.has(w)) matches++;
   }
-  return matches / Math.max(wa.size, wb.length);
+  return matches / catalogWords.length;
+}
+
+/**
+ * Return true if the catalog word appears only as an ingredient in the offer
+ * (preceded by "mit" or "aus"), not as the main product.
+ * E.g. "Champignons mit Frischkäse" → frischkäse is an ingredient.
+ */
+function isIngredientOnly(offerName: string, catalogName: string): boolean {
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
+  return new RegExp(`\\b(mit|aus)\\b.*\\b${n(catalogName)}\\b`).test(n(offerName));
 }
 
 /** Find the best matching offer for a catalog product name. */
@@ -167,9 +179,10 @@ function bestMatch(
   offers: ScrapedOffer[],
 ): ScrapedOffer | null {
   let best: ScrapedOffer | null = null;
-  let bestScore = 0.15; // minimum similarity threshold
+  let bestScore = 0.65; // require 65% of catalog words to appear in offer name
 
   for (const offer of offers) {
+    if (isIngredientOnly(offer.name, productName)) continue;
     const score = nameSimilarity(productName, offer.name);
     if (score > bestScore) {
       bestScore = score;
@@ -193,21 +206,39 @@ async function searchCatalog(
     await sleep(2000);
     await acceptCookies(page);
 
+    // Scroll to load dynamic content
+    for (let i = 1; i <= 4; i++) {
+      await page.evaluate((f: number) => {
+        window.scrollTo(0, document.body.scrollHeight * f);
+      }, i / 4);
+      await sleep(300);
+    }
+    await sleep(1000);
+
     const rawItems = await page.evaluate(() => {
-      // Try the offer tile component first (same as offers page)
-      const tiles = document.querySelectorAll<HTMLElement>(".cor-offer-renderer-tile");
-      if (tiles.length > 0) {
-        return Array.from(tiles).slice(0, 8).map((tile) => {
-          const img = tile.querySelector<HTMLImageElement>('img[src*="img.rewe-static"]');
-          const link = tile.closest<HTMLAnchorElement>("a") ?? tile.querySelector<HTMLAnchorElement>("a");
-          return { text: tile.innerText ?? "", imgSrc: img?.src ?? "", href: link?.href ?? "" };
-        });
+      // Try multiple selector patterns — search page may differ from offers page
+      const selectors = [
+        ".cor-offer-renderer-tile",
+        ".search-product-tile",
+        "[class*='product-tile']",
+        "[class*='offer-tile']",
+        "article[class*='product']",
+      ];
+      let tiles: NodeListOf<HTMLElement> | null = null;
+      for (const sel of selectors) {
+        const found = document.querySelectorAll<HTMLElement>(sel);
+        if (found.length > 0) { tiles = found; break; }
       }
-      return [];
+      if (!tiles) return [];
+      return Array.from(tiles).slice(0, 8).map((tile) => {
+        const img = tile.querySelector<HTMLImageElement>("img");
+        const link = tile.closest<HTMLAnchorElement>("a") ?? tile.querySelector<HTMLAnchorElement>("a");
+        return { text: tile.innerText ?? "", imgSrc: img?.src ?? img?.dataset?.src ?? "", href: link?.href ?? "" };
+      });
     });
 
     let best: ScrapedOffer | null = null;
-    let bestScore = 0.1;
+    let bestScore = 0.5; // catalog search: require 50% of catalog words to match
     for (const { text, imgSrc, href } of rawItems) {
       const parsed = parseTileText(text, imgSrc, href);
       if (!parsed) continue;
@@ -321,21 +352,10 @@ export class ReweSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          const catalog = await searchCatalog(page, product.productName);
-          if (catalog) {
-            results.push({
-              externalId: "",
-              name: catalog.name,
-              price: catalog.price,
-              currency: "EUR",
-              unitSize: catalog.unitSize,
-              imageUrl: catalog.imageUrl,
-              url: `${SEARCH_BASE}${encodeURIComponent(product.productName)}`,
-              isEstimated: false,
-            });
-          } else {
-            console.warn(`[rewe] No price found for "${product.productName}"`);
-          }
+          // Catalog search (rewe.de/suche) renders tiles without prices —
+          // prices come from shop.rewe.de which blocks headless browsers.
+          // Skipping catalog search in batch runs; fetchProduct() still tries it.
+          console.warn(`[rewe] Not on offer this week: "${product.productName}"`);
         }
       }
       return results;

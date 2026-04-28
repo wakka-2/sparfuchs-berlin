@@ -103,7 +103,14 @@ async function extractTiles(
   page: import("playwright").Page,
 ): Promise<Array<{ text: string; imgAlt: string; imgSrc: string }>> {
   return page.evaluate(() => {
-    const tiles = document.querySelectorAll<HTMLElement>(".k-product-tile");
+    // Try multiple selector patterns — kaufland.de and filiale.kaufland.de may differ
+    const selectors = [".k-product-tile", ".product-tile", "[class*='product-tile']"];
+    let tiles: NodeListOf<HTMLElement> | null = null;
+    for (const sel of selectors) {
+      const found = document.querySelectorAll<HTMLElement>(sel);
+      if (found.length > 0) { tiles = found; break; }
+    }
+    if (!tiles) return [];
     return Array.from(tiles).map((tile) => {
       const img = [...tile.querySelectorAll<HTMLImageElement>("img")].find(
         (i) => i.src && !i.src.includes(".svg") && !i.src.startsWith("data:"),
@@ -148,18 +155,33 @@ function nameSimilarity(a: string, b: string): number {
       .replace(/[^a-z0-9äöüß\s]/g, " ")
       .split(/\s+/)
       .filter((w) => w.length > 2);
-  const wa = new Set(normalise(a));
-  const wb = normalise(b);
-  if (wa.size === 0 || wb.length === 0) return 0;
+  const catalogWords = normalise(a);
+  const offerWords = new Set(normalise(b));
+  if (catalogWords.length === 0) return 0;
   let matches = 0;
-  for (const w of wb) if (wa.has(w)) matches++;
-  return matches / Math.max(wa.size, wb.length);
+  for (const w of catalogWords) if (offerWords.has(w)) matches++;
+  return matches / catalogWords.length;
+}
+
+/**
+ * Return true if the catalog word appears in the offer name only as an
+ * ingredient (after a German preposition like "mit", "und", "aus").
+ * E.g. "Gegrillte Champignons mit Frischkäse" → "Frischkäse" is an ingredient.
+ */
+function isIngredientOnly(offerName: string, catalogName: string): boolean {
+  const normalise = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
+  const offerN = normalise(offerName);
+  const catalogN = normalise(catalogName);
+  // If offer contains "mit <catalogWord>" pattern, it's an ingredient listing
+  return new RegExp(`\\b(mit|aus)\\b.*\\b${catalogN}\\b`).test(offerN);
 }
 
 function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | null {
   let best: ScrapedOffer | null = null;
-  let bestScore = 0.15;
+  let bestScore = 0.65;
   for (const offer of offers) {
+    if (isIngredientOnly(offer.name, productName)) continue;
     const score = nameSimilarity(productName, offer.name);
     if (score > bestScore) {
       bestScore = score;
@@ -179,14 +201,24 @@ async function searchCatalog(
 ): Promise<ScrapedOffer | null> {
   const url = `${CATALOG_BASE}${encodeURIComponent(productName)}/`;
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
-    await sleep(1500);
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await sleep(2500);
     await acceptCookies(page);
+    await sleep(500);
+
+    // Scroll to trigger lazy-loading on the search results page
+    for (let i = 1; i <= 4; i++) {
+      await page.evaluate((f: number) => {
+        window.scrollTo(0, document.body.scrollHeight * f);
+      }, i / 4);
+      await sleep(300);
+    }
+    await sleep(1000);
 
     const rawTiles = await extractTiles(page);
 
     let best: ScrapedOffer | null = null;
-    let bestScore = 0.1;
+    let bestScore = 0.5;
     for (const { text, imgAlt, imgSrc } of rawTiles.slice(0, 8)) {
       const parsed = parseTile(text, imgAlt, imgSrc);
       if (!parsed) continue;
@@ -295,21 +327,9 @@ export class KauflandSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          const catalog = await searchCatalog(page, product.productName);
-          if (catalog) {
-            results.push({
-              externalId: "",
-              name: catalog.name,
-              price: catalog.price,
-              currency: "EUR",
-              unitSize: catalog.unitSize,
-              imageUrl: catalog.imageUrl,
-              url: `${CATALOG_BASE}${encodeURIComponent(product.productName)}/`,
-              isEstimated: false,
-            });
-          } else {
-            console.warn(`[kaufland] No price found for "${product.productName}"`);
-          }
+          // Kaufland catalog search (kaufland.de) uses a different URL/DOM structure
+          // that doesn't expose product tiles in headless. Skipping in batch runs.
+          console.warn(`[kaufland] Not on offer this week: "${product.productName}"`);
         }
       }
       return results;

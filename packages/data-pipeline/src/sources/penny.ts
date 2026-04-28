@@ -99,6 +99,10 @@ function parseTileText(text: string, imgSrc: string): ScrapedOffer | null {
 
   const unitSize = nonPriceLines[1] ?? "";
 
+  // Reject multi-pack tiles (e.g. "je 12 x 1 l") — price would be for the full pack,
+  // not a single unit, which would appear absurdly high to users.
+  if (/\d+\s*[xX×]\s*\d/.test(unitSize)) return null;
+
   return {
     name,
     price,
@@ -152,18 +156,24 @@ function nameSimilarity(a: string, b: string): number {
       .replace(/[^a-z0-9äöüß\s]/g, " ")
       .split(/\s+/)
       .filter((w) => w.length > 2);
-  const wa = new Set(normalise(a));
-  const wb = normalise(b);
-  if (wa.size === 0 || wb.length === 0) return 0;
+  const catalogWords = normalise(a);
+  const offerWords = new Set(normalise(b));
+  if (catalogWords.length === 0) return 0;
   let matches = 0;
-  for (const w of wb) if (wa.has(w)) matches++;
-  return matches / Math.max(wa.size, wb.length);
+  for (const w of catalogWords) if (offerWords.has(w)) matches++;
+  return matches / catalogWords.length;
+}
+
+function isIngredientOnly(offerName: string, catalogName: string): boolean {
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
+  return new RegExp(`\\b(mit|aus)\\b.*\\b${n(catalogName)}\\b`).test(n(offerName));
 }
 
 function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | null {
   let best: ScrapedOffer | null = null;
-  let bestScore = 0.15;
+  let bestScore = 0.65;
   for (const offer of offers) {
+    if (isIngredientOnly(offer.name, productName)) continue;
     const score = nameSimilarity(productName, offer.name);
     if (score > bestScore) {
       bestScore = score;
@@ -184,11 +194,27 @@ async function searchCatalog(
   const url = `${SEARCH_BASE}${encodeURIComponent(productName)}`;
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
-    await sleep(1500);
+    await sleep(2000);
     await acceptCookies(page);
 
+    // Scroll to trigger lazy-loading
+    for (let i = 1; i <= 4; i++) {
+      await page.evaluate((f: number) => {
+        window.scrollTo(0, document.body.scrollHeight * f);
+      }, i / 4);
+      await sleep(300);
+    }
+    await sleep(1000);
+
     const rawItems = await page.evaluate(() => {
-      const tiles = document.querySelectorAll<HTMLElement>(".offer-tile");
+      // Try multiple selectors — search page may differ from offers page
+      const selectors = [".offer-tile", "[class*='offer-tile']", "[class*='product-tile']"];
+      let tiles: NodeListOf<HTMLElement> | null = null;
+      for (const sel of selectors) {
+        const found = document.querySelectorAll<HTMLElement>(sel);
+        if (found.length > 0) { tiles = found; break; }
+      }
+      if (!tiles) return [];
       return Array.from(tiles).slice(0, 8).map((tile) => {
         const img = tile.querySelector<HTMLImageElement>("img");
         return { text: tile.innerText ?? "", imgSrc: img?.src ?? img?.dataset?.src ?? "" };
@@ -196,7 +222,7 @@ async function searchCatalog(
     });
 
     let best: ScrapedOffer | null = null;
-    let bestScore = 0.1;
+    let bestScore = 0.5;
     for (const { text, imgSrc } of rawItems) {
       const parsed = parseTileText(text, imgSrc);
       if (!parsed) continue;
@@ -302,21 +328,9 @@ export class PennySource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          const catalog = await searchCatalog(page, product.productName);
-          if (catalog) {
-            results.push({
-              externalId: "",
-              name: catalog.name,
-              price: catalog.price,
-              currency: "EUR",
-              unitSize: catalog.unitSize,
-              imageUrl: catalog.imageUrl,
-              url: `${SEARCH_BASE}${encodeURIComponent(product.productName)}`,
-              isEstimated: false,
-            });
-          } else {
-            console.warn(`[penny] No price found for "${product.productName}"`);
-          }
+          // Penny search (penny.de/suche) does not render product tiles in headless.
+          // Skipping catalog search in batch runs; fetchProduct() still tries it.
+          console.warn(`[penny] Not on offer this week: "${product.productName}"`);
         }
       }
       return results;
