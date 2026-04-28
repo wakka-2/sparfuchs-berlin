@@ -16,6 +16,7 @@ import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
 
 const OFFERS_URL = "https://www.rewe.de/angebote/nationale-angebote/";
+const SEARCH_BASE = "https://www.rewe.de/suche/?search=";
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -178,6 +179,57 @@ function bestMatch(
   return best;
 }
 
+/**
+ * Search REWE's website for a product not found in the weekly offers.
+ * rewe.de/suche uses the same cor-offer-renderer-tile component as the offers page.
+ */
+async function searchCatalog(
+  page: import("playwright").Page,
+  productName: string,
+): Promise<ScrapedOffer | null> {
+  const url = `${SEARCH_BASE}${encodeURIComponent(productName)}`;
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    await sleep(2000);
+    await acceptCookies(page);
+
+    const rawItems = await page.evaluate(() => {
+      // Try the offer tile component first (same as offers page)
+      const tiles = document.querySelectorAll<HTMLElement>(".cor-offer-renderer-tile");
+      if (tiles.length > 0) {
+        return Array.from(tiles).slice(0, 8).map((tile) => {
+          const img = tile.querySelector<HTMLImageElement>('img[src*="img.rewe-static"]');
+          const link = tile.closest<HTMLAnchorElement>("a") ?? tile.querySelector<HTMLAnchorElement>("a");
+          return { text: tile.innerText ?? "", imgSrc: img?.src ?? "", href: link?.href ?? "" };
+        });
+      }
+      return [];
+    });
+
+    let best: ScrapedOffer | null = null;
+    let bestScore = 0.1;
+    for (const { text, imgSrc, href } of rawItems) {
+      const parsed = parseTileText(text, imgSrc, href);
+      if (!parsed) continue;
+      const score = nameSimilarity(productName, parsed.name);
+      if (score > bestScore) {
+        bestScore = score;
+        best = parsed;
+      }
+    }
+
+    if (best) {
+      console.log(`[rewe] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
+    }
+    return best;
+  } catch (err) {
+    console.warn(
+      `[rewe] catalog search failed for "${productName}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
 export class ReweSource implements StoreSource {
   readonly storeSlug = "rewe";
 
@@ -203,21 +255,37 @@ export class ReweSource implements StoreSource {
     try {
       const offers = await this.getOffers(page);
       const match = bestMatch(productName, offers);
-      if (!match) {
-        console.warn(`[rewe] No offer match for "${productName}"`);
-        return null;
+      if (match) {
+        console.log(`[rewe] "${productName}" → offer "${match.name}" @ ${match.price} €`);
+        return {
+          externalId: "",
+          name: match.name,
+          price: match.price,
+          currency: "EUR",
+          unitSize: match.unitSize,
+          imageUrl: match.imageUrl,
+          url: match.url,
+          isEstimated: false,
+        };
       }
-      console.log(`[rewe] "${productName}" → "${match.name}" @ ${match.price} €`);
-      return {
-        externalId: "",
-        name: match.name,
-        price: match.price,
-        currency: "EUR",
-        unitSize: match.unitSize,
-        imageUrl: match.imageUrl,
-        url: match.url,
-        isEstimated: false,
-      };
+
+      // Not on offer this week — search catalog for regular price
+      const catalog = await searchCatalog(page, productName);
+      if (catalog) {
+        return {
+          externalId: "",
+          name: catalog.name,
+          price: catalog.price,
+          currency: "EUR",
+          unitSize: catalog.unitSize,
+          imageUrl: catalog.imageUrl,
+          url: `${SEARCH_BASE}${encodeURIComponent(productName)}`,
+          isEstimated: false,
+        };
+      }
+
+      console.warn(`[rewe] No price found for "${productName}"`);
+      return null;
     } catch (err) {
       console.error(
         `[rewe] Error: ${err instanceof Error ? err.message : String(err)}`,
@@ -253,7 +321,21 @@ export class ReweSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          console.warn(`[rewe] No offer match for "${product.productName}"`);
+          const catalog = await searchCatalog(page, product.productName);
+          if (catalog) {
+            results.push({
+              externalId: "",
+              name: catalog.name,
+              price: catalog.price,
+              currency: "EUR",
+              unitSize: catalog.unitSize,
+              imageUrl: catalog.imageUrl,
+              url: `${SEARCH_BASE}${encodeURIComponent(product.productName)}`,
+              isEstimated: false,
+            });
+          } else {
+            console.warn(`[rewe] No price found for "${product.productName}"`);
+          }
         }
       }
       return results;

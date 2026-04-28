@@ -15,6 +15,7 @@ import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
 
 const OFFERS_URL = "https://www.penny.de/angebote";
+const SEARCH_BASE = "https://www.penny.de/suche?query=";
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -172,6 +173,52 @@ function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | 
   return best;
 }
 
+/**
+ * Search Penny's product catalog for products not in this week's offers.
+ * penny.de/suche uses the same .offer-tile component as the offers page.
+ */
+async function searchCatalog(
+  page: import("playwright").Page,
+  productName: string,
+): Promise<ScrapedOffer | null> {
+  const url = `${SEARCH_BASE}${encodeURIComponent(productName)}`;
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    await sleep(1500);
+    await acceptCookies(page);
+
+    const rawItems = await page.evaluate(() => {
+      const tiles = document.querySelectorAll<HTMLElement>(".offer-tile");
+      return Array.from(tiles).slice(0, 8).map((tile) => {
+        const img = tile.querySelector<HTMLImageElement>("img");
+        return { text: tile.innerText ?? "", imgSrc: img?.src ?? img?.dataset?.src ?? "" };
+      });
+    });
+
+    let best: ScrapedOffer | null = null;
+    let bestScore = 0.1;
+    for (const { text, imgSrc } of rawItems) {
+      const parsed = parseTileText(text, imgSrc);
+      if (!parsed) continue;
+      const score = nameSimilarity(productName, parsed.name);
+      if (score > bestScore) {
+        bestScore = score;
+        best = parsed;
+      }
+    }
+
+    if (best) {
+      console.log(`[penny] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
+    }
+    return best;
+  } catch (err) {
+    console.warn(
+      `[penny] catalog search failed for "${productName}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
 export class PennySource implements StoreSource {
   readonly storeSlug = "penny";
 
@@ -194,21 +241,37 @@ export class PennySource implements StoreSource {
     try {
       const offers = await this.getOffers(page);
       const match = bestMatch(productName, offers);
-      if (!match) {
-        console.warn(`[penny] No offer match for "${productName}"`);
-        return null;
+      if (match) {
+        console.log(`[penny] "${productName}" → offer "${match.name}" @ ${match.price} €`);
+        return {
+          externalId: "",
+          name: match.name,
+          price: match.price,
+          currency: "EUR",
+          unitSize: match.unitSize,
+          imageUrl: match.imageUrl,
+          url: OFFERS_URL,
+          isEstimated: false,
+        };
       }
-      console.log(`[penny] "${productName}" → "${match.name}" @ ${match.price} €`);
-      return {
-        externalId: "",
-        name: match.name,
-        price: match.price,
-        currency: "EUR",
-        unitSize: match.unitSize,
-        imageUrl: match.imageUrl,
-        url: OFFERS_URL,
-        isEstimated: false,
-      };
+
+      // Not on offer — search catalog for regular price
+      const catalog = await searchCatalog(page, productName);
+      if (catalog) {
+        return {
+          externalId: "",
+          name: catalog.name,
+          price: catalog.price,
+          currency: "EUR",
+          unitSize: catalog.unitSize,
+          imageUrl: catalog.imageUrl,
+          url: `${SEARCH_BASE}${encodeURIComponent(productName)}`,
+          isEstimated: false,
+        };
+      }
+
+      console.warn(`[penny] No price found for "${productName}"`);
+      return null;
     } catch (err) {
       console.error(`[penny] Error: ${err instanceof Error ? err.message : String(err)}`);
       return null;
@@ -239,7 +302,21 @@ export class PennySource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          console.warn(`[penny] No offer match for "${product.productName}"`);
+          const catalog = await searchCatalog(page, product.productName);
+          if (catalog) {
+            results.push({
+              externalId: "",
+              name: catalog.name,
+              price: catalog.price,
+              currency: "EUR",
+              unitSize: catalog.unitSize,
+              imageUrl: catalog.imageUrl,
+              url: `${SEARCH_BASE}${encodeURIComponent(product.productName)}`,
+              isEstimated: false,
+            });
+          } else {
+            console.warn(`[penny] No price found for "${product.productName}"`);
+          }
         }
       }
       return results;

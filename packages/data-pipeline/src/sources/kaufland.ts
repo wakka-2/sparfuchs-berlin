@@ -1,28 +1,19 @@
 /**
- * Kaufland scraper — scrapes weekly in-store offers from filiale.kaufland.de
+ * Kaufland scraper — weekly in-store offers + catalog search fallback.
  *
- * URL: https://filiale.kaufland.de/angebote/uebersicht.html
- * Tile selector: .k-product-tile
+ * Two data sources (both real, no estimation):
+ * 1. Weekly offers:  filiale.kaufland.de/angebote/uebersicht.html (.k-product-tile)
+ * 2. Catalog search: www.kaufland.de/product-search/index/q/{query}/ (.k-product-tile)
  *
- * Tile text format:
- *   BRAND
- *   Product description
- *   je X-g-Packg.
- *   (1 kg = X.XX)
- *   -XX%
- *   sale_price    ← this is what we want
- *   original_price
- *   [-YY%         ← optional Kaufland Card price — skip
- *   card_price
- *   original_price]
- *
- * Prices use dot notation (0.35 not 0,35).
- * Product name comes from img alt: "BRAND Description".
+ * Weekly offer tiles always carry a "-XX%" discount badge.
+ * Catalog tiles show the regular shelf price without a badge.
+ * parseTile() handles both formats.
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
 
 const OFFERS_URL = "https://filiale.kaufland.de/angebote/uebersicht.html";
+const CATALOG_BASE = "https://www.kaufland.de/product-search/index/q/";
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -44,7 +35,7 @@ async function acceptCookies(page: import("playwright").Page) {
       );
       if (accept) (accept as HTMLElement).click();
     });
-    await sleep(1000);
+    await sleep(800);
   } catch {
     // banner not present
   }
@@ -53,9 +44,11 @@ async function acceptCookies(page: import("playwright").Page) {
 /**
  * Parse a single Kaufland product tile.
  *
- * Price block pattern: "-XX%\nsale_price\noriginal_price"
- * We take the first sale_price (before the optional Card price block).
- * Product name comes from the image alt attribute.
+ * Sale tile:     "-XX%\nsale_price\noriginal_price"  → take sale_price
+ * Regular tile:  no badge → take the first X.XX price found
+ *
+ * Prices use dot notation (1.79, not 1,79).
+ * Product name comes from img alt attribute.
  */
 function parseTile(text: string, imgAlt: string, imgSrc: string): ScrapedOffer | null {
   const lines = text
@@ -63,69 +56,55 @@ function parseTile(text: string, imgAlt: string, imgSrc: string): ScrapedOffer |
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const priceRe = /^(\d+)\.(\d{2})$/; // "0.35" or "1.79"
+  const priceRe = /^(\d+)\.(\d{2})$/;
   const pctRe = /^-\d+%$/;
 
   let price: number | null = null;
   let unitSize = "";
 
+  // Strategy 1: discount badge present → next line is sale price
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-
-    // Capture unit info (starts with "je " or contains "-g-" / "-l-" / "-kg-")
     if (!unitSize && /^je\s|[-–]\d+[-–](g|ml|l|kg|cl)[-–]/i.test(line)) {
       unitSize = line;
     }
-
-    // On a discount line, the very next line is the sale price
     if (pctRe.test(line) && price === null) {
       const next = lines[i + 1];
       if (next) {
         const m = next.match(priceRe);
-        if (m) {
-          price = parseFloat(`${m[1]}.${m[2]}`);
-        }
+        if (m) price = parseFloat(`${m[1]}.${m[2]}`);
+      }
+    }
+  }
+
+  // Strategy 2: no discount badge → take the first X.XX number (regular shelf price)
+  if (price === null) {
+    for (const line of lines) {
+      if (!unitSize && /^je\s|[-–]\d+[-–](g|ml|l|kg|cl)[-–]/i.test(line)) {
+        unitSize = line;
+      }
+      const m = line.match(priceRe);
+      if (m) {
+        price = parseFloat(`${m[1]}.${m[2]}`);
+        break;
       }
     }
   }
 
   if (price === null || price <= 0) return null;
 
-  // Name from image alt (most descriptive). Fall back to first two text lines.
   const name = imgAlt.trim() || lines.slice(0, 2).join(" ");
   if (!name) return null;
 
-  return {
-    name,
-    price,
-    unitSize,
-    imageUrl: imgSrc || undefined,
-  };
+  return { name, price, unitSize, imageUrl: imgSrc || undefined };
 }
 
-async function scrapeAllOffers(
+async function extractTiles(
   page: import("playwright").Page,
-): Promise<ScrapedOffer[]> {
-  await page.goto(OFFERS_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-  await sleep(3000);
-  await acceptCookies(page);
-  await sleep(1000);
-
-  // Scroll to trigger lazy-loading across 755+ tiles
-  const scrollSteps = 12;
-  for (let i = 1; i <= scrollSteps; i++) {
-    const fraction = i / scrollSteps;
-    await page.evaluate((f: number) => {
-      window.scrollTo(0, document.body.scrollHeight * f);
-    }, fraction);
-    await sleep(400);
-  }
-  await sleep(2500);
-
-  const rawTiles = await page.evaluate(() => {
+): Promise<Array<{ text: string; imgAlt: string; imgSrc: string }>> {
+  return page.evaluate(() => {
     const tiles = document.querySelectorAll<HTMLElement>(".k-product-tile");
     return Array.from(tiles).map((tile) => {
-      // Skip SVG/icon images — find the actual product photo
       const img = [...tile.querySelectorAll<HTMLImageElement>("img")].find(
         (i) => i.src && !i.src.includes(".svg") && !i.src.startsWith("data:"),
       );
@@ -136,7 +115,24 @@ async function scrapeAllOffers(
       };
     });
   });
+}
 
+async function scrapeAllOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
+  await page.goto(OFFERS_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await sleep(3000);
+  await acceptCookies(page);
+  await sleep(1000);
+
+  const scrollSteps = 12;
+  for (let i = 1; i <= scrollSteps; i++) {
+    await page.evaluate((f: number) => {
+      window.scrollTo(0, document.body.scrollHeight * f);
+    }, i / scrollSteps);
+    await sleep(400);
+  }
+  await sleep(2500);
+
+  const rawTiles = await extractTiles(page);
   const results: ScrapedOffer[] = [];
   for (const { text, imgAlt, imgSrc } of rawTiles) {
     const parsed = parseTile(text, imgAlt, imgSrc);
@@ -173,6 +169,46 @@ function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | 
   return best;
 }
 
+/**
+ * Search Kaufland's online catalog for a product not found in this week's offers.
+ * Returns the regular shelf price (real price — not estimated).
+ */
+async function searchCatalog(
+  page: import("playwright").Page,
+  productName: string,
+): Promise<ScrapedOffer | null> {
+  const url = `${CATALOG_BASE}${encodeURIComponent(productName)}/`;
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    await sleep(1500);
+    await acceptCookies(page);
+
+    const rawTiles = await extractTiles(page);
+
+    let best: ScrapedOffer | null = null;
+    let bestScore = 0.1;
+    for (const { text, imgAlt, imgSrc } of rawTiles.slice(0, 8)) {
+      const parsed = parseTile(text, imgAlt, imgSrc);
+      if (!parsed) continue;
+      const score = nameSimilarity(productName, parsed.name);
+      if (score > bestScore) {
+        bestScore = score;
+        best = parsed;
+      }
+    }
+
+    if (best) {
+      console.log(`[kaufland] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
+    }
+    return best;
+  } catch (err) {
+    console.warn(
+      `[kaufland] catalog search failed for "${productName}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+}
+
 export class KauflandSource implements StoreSource {
   readonly storeSlug = "kaufland";
 
@@ -195,21 +231,37 @@ export class KauflandSource implements StoreSource {
     try {
       const offers = await this.getOffers(page);
       const match = bestMatch(productName, offers);
-      if (!match) {
-        console.warn(`[kaufland] No offer match for "${productName}"`);
-        return null;
+      if (match) {
+        console.log(`[kaufland] "${productName}" → offer "${match.name}" @ ${match.price} €`);
+        return {
+          externalId: "",
+          name: match.name,
+          price: match.price,
+          currency: "EUR",
+          unitSize: match.unitSize,
+          imageUrl: match.imageUrl,
+          url: OFFERS_URL,
+          isEstimated: false,
+        };
       }
-      console.log(`[kaufland] "${productName}" → "${match.name}" @ ${match.price} €`);
-      return {
-        externalId: "",
-        name: match.name,
-        price: match.price,
-        currency: "EUR",
-        unitSize: match.unitSize,
-        imageUrl: match.imageUrl,
-        url: OFFERS_URL,
-        isEstimated: false,
-      };
+
+      // Not on offer this week — search the catalog for the regular price
+      const catalog = await searchCatalog(page, productName);
+      if (catalog) {
+        return {
+          externalId: "",
+          name: catalog.name,
+          price: catalog.price,
+          currency: "EUR",
+          unitSize: catalog.unitSize,
+          imageUrl: catalog.imageUrl,
+          url: `${CATALOG_BASE}${encodeURIComponent(productName)}/`,
+          isEstimated: false,
+        };
+      }
+
+      console.warn(`[kaufland] No price found for "${productName}"`);
+      return null;
     } catch (err) {
       console.error(`[kaufland] Error: ${err instanceof Error ? err.message : String(err)}`);
       return null;
@@ -225,11 +277,12 @@ export class KauflandSource implements StoreSource {
     try {
       const offers = await this.getOffers(page);
       const results: RawProductData[] = [];
+
       for (const product of products) {
         const match = bestMatch(product.productName, offers);
         if (match) {
           console.log(
-            `[kaufland] "${product.productName}" → "${match.name}" @ ${match.price} €`,
+            `[kaufland] "${product.productName}" → offer "${match.name}" @ ${match.price} €`,
           );
           results.push({
             externalId: "",
@@ -242,7 +295,21 @@ export class KauflandSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          console.warn(`[kaufland] No offer match for "${product.productName}"`);
+          const catalog = await searchCatalog(page, product.productName);
+          if (catalog) {
+            results.push({
+              externalId: "",
+              name: catalog.name,
+              price: catalog.price,
+              currency: "EUR",
+              unitSize: catalog.unitSize,
+              imageUrl: catalog.imageUrl,
+              url: `${CATALOG_BASE}${encodeURIComponent(product.productName)}/`,
+              isEstimated: false,
+            });
+          } else {
+            console.warn(`[kaufland] No price found for "${product.productName}"`);
+          }
         }
       }
       return results;
