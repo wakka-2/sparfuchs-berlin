@@ -132,6 +132,7 @@ describe("normalizePrice", () => {
       unitSize: "1L",
       unitType: "L",
       unitPriceCents: 119,
+      isEstimated: false,
     });
   });
 
@@ -154,6 +155,7 @@ describe("normalizePrice", () => {
       unitSize: "250g",
       unitType: "kg",
       unitPriceCents: 796,
+      isEstimated: false,
     });
   });
 
@@ -192,6 +194,7 @@ describe("normalizePrice", () => {
       unitSize: "1Stück",
       unitType: "Stück",
       unitPriceCents: 79,
+      isEstimated: false,
     });
   });
 });
