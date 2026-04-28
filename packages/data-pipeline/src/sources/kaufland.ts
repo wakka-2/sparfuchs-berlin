@@ -93,7 +93,10 @@ function parseTile(text: string, imgAlt: string, imgSrc: string): ScrapedOffer |
 
   if (price === null || price <= 0) return null;
 
-  const name = imgAlt.trim() || lines.slice(0, 2).join(" ");
+  // Skip price/badge/unit lines when imgAlt is missing so we don't get "-25% 1.79" as the name
+  const nameSkipRe = /^(-\d+%|\d+[\.,]\d{2}|je\s|\d+\s*(g|ml|l|kg|cl)\b)/i;
+  const textLines = lines.filter((l) => !nameSkipRe.test(l));
+  const name = imgAlt.trim() || textLines[0] || "";
   if (!name) return null;
 
   return { name, price, unitSize, imageUrl: imgSrc || undefined };
@@ -148,6 +151,11 @@ async function scrapeAllOffers(page: import("playwright").Page): Promise<Scraped
   return results;
 }
 
+const COMPOUND_SAFE_WORDS = new Set([
+  "gurke", "äpfel", "trauben", "paprika", "joghurt", "tomaten", "bananen",
+  "kartoffeln", "zwiebeln", "karotten", "orangen", "zitronen", "birnen",
+]);
+
 function nameSimilarity(a: string, b: string): number {
   const normalise = (s: string) =>
     s
@@ -156,10 +164,18 @@ function nameSimilarity(a: string, b: string): number {
       .split(/\s+/)
       .filter((w) => w.length > 2);
   const catalogWords = normalise(a);
-  const offerWords = new Set(normalise(b));
+  const offerRawWords = normalise(b);
+  const offerSet = new Set(offerRawWords);
   if (catalogWords.length === 0) return 0;
   let matches = 0;
-  for (const w of catalogWords) if (offerWords.has(w)) matches++;
+  for (const cWord of catalogWords) {
+    if (offerSet.has(cWord)) {
+      matches++;
+    } else if (cWord.length >= 8 || COMPOUND_SAFE_WORDS.has(cWord)) {
+      // German compound words: "gurke" inside "minigurken", "kartoffeln" inside "speisekartoffeln"
+      if (offerRawWords.some((oWord) => oWord.includes(cWord))) matches++;
+    }
+  }
   return matches / catalogWords.length;
 }
 
