@@ -5,7 +5,6 @@ const products = await sql`SELECT id FROM products WHERE is_active = true`;
 const stores = await sql`SELECT id, slug FROM stores WHERE is_active = true`;
 console.log(`Adding matches: ${products.length} products × ${stores.length} stores`);
 
-let added = 0;
 for (const product of products) {
   for (const store of stores) {
     await sql`
@@ -13,7 +12,6 @@ for (const product of products) {
       VALUES (${product.id}, ${store.id}, 1.00, false)
       ON CONFLICT ON CONSTRAINT uq_product_store DO NOTHING
     `;
-    added++;
   }
 }
 
