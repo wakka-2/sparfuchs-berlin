@@ -94,7 +94,7 @@ function parseTile(text: string, imgAlt: string, imgSrc: string): ScrapedOffer |
   if (price === null || price <= 0) return null;
 
   // Skip price/badge/unit lines when imgAlt is missing so we don't get "-25% 1.79" as the name
-  const nameSkipRe = /^(-\d+%|\d+[\.,]\d{2}|je\s|\d+\s*(g|ml|l|kg|cl)\b)/i;
+  const nameSkipRe = /^(-\d+%|\d+[.,]\d{2}|je\s|\d+\s*(g|ml|l|kg|cl)\b)/i;
   const textLines = lines.filter((l) => !nameSkipRe.test(l));
   const name = imgAlt.trim() || textLines[0] || "";
   if (!name) return null;
