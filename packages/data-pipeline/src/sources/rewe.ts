@@ -14,7 +14,6 @@
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
-import { getFallbackPrice } from "./fallback-prices.js";
 
 const OFFERS_URL = "https://www.rewe.de/angebote/nationale-angebote/";
 
@@ -205,19 +204,6 @@ export class ReweSource implements StoreSource {
       const offers = await this.getOffers(page);
       const match = bestMatch(productName, offers);
       if (!match) {
-        const fallback = getFallbackPrice(productName, "rewe", OFFERS_URL);
-        if (fallback) {
-          console.log(`[rewe] "${productName}" → fallback price @ ${fallback.price} €`);
-          return {
-            externalId: "",
-            name: productName,
-            price: fallback.price,
-            currency: "EUR",
-            unitSize: fallback.unitSize,
-            url: fallback.url,
-            isEstimated: true,
-          };
-        }
         console.warn(`[rewe] No offer match for "${productName}"`);
         return null;
       }
@@ -267,21 +253,7 @@ export class ReweSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          const fallback = getFallbackPrice(product.productName, "rewe", OFFERS_URL);
-          if (fallback) {
-            console.log(`[rewe] "${product.productName}" → fallback price @ ${fallback.price} €`);
-            results.push({
-              externalId: "",
-              name: product.productName,
-              price: fallback.price,
-              currency: "EUR",
-              unitSize: fallback.unitSize,
-              url: fallback.url,
-              isEstimated: true,
-            });
-          } else {
-            console.warn(`[rewe] No offer match for "${product.productName}"`);
-          }
+          console.warn(`[rewe] No offer match for "${product.productName}"`);
         }
       }
       return results;

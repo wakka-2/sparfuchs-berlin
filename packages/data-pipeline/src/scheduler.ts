@@ -13,16 +13,15 @@ import cron from "node-cron";
 import { runFullPipeline } from "./runner.js";
 import { closeDb } from "./db.js";
 import { ReweSource } from "./sources/rewe.js";
-import { LidlSource } from "./sources/lidl.js";
 import { PennySource } from "./sources/penny.js";
 import { AldiNordSource } from "./sources/aldi.js";
 import { KauflandSource } from "./sources/kaufland.js";
 
+// Lidl removed: Lidl.de does not publish grocery prices online.
 const CRON_SCHEDULE = process.env.PIPELINE_CRON ?? "0 5 * * *";
 
 const sources = [
   new ReweSource(),
-  new LidlSource(),
   new PennySource(),
   new AldiNordSource(),
   new KauflandSource(),
