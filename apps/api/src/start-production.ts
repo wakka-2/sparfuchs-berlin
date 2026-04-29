@@ -4,14 +4,31 @@
  * Runs database migration (idempotent), optionally seeds if the stores table
  * is empty, then starts the HTTP server.
  *
- * Usage (set as Railway start command):
- *   node dist/start-production.js
+ * Start command (Render / Railway):
+ *   node apps/api/dist/start-production.js    (run from repo root)
  */
+
+// ── Catch anything that escapes the main() try/catch ─────────────────────────
+process.on("uncaughtException", (err) => {
+  process.stdout.write(`[startup] uncaughtException: ${err.stack ?? err}\n`);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+  process.stdout.write(`[startup] unhandledRejection: ${reason}\n`);
+  process.exit(1);
+});
+
+process.stdout.write("[startup] process handlers registered\n");
 
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
+process.stdout.write("[startup] node built-ins imported\n");
+
 import postgres from "postgres";
+
+process.stdout.write("[startup] postgres imported — entering main()\n");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,19 +36,18 @@ const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/sparfuchs";
 
 async function runMigrations(sql: ReturnType<typeof postgres>) {
-  console.log("[startup] Running database migrations...");
+  process.stdout.write("[startup] Running database migrations...\n");
 
   const migrationsDir = join(__dirname, "db", "migrations");
-  // Apply all .sql files in alphabetical order — each file must be idempotent
   const files = ["0000_init.sql", "0001_product_match_image.sql", "0002_is_estimated.sql"];
   for (const file of files) {
     const migrationPath = join(migrationsDir, file);
     const migration = readFileSync(migrationPath, "utf-8");
     await sql.unsafe(migration);
-    console.log(`[startup] Applied migration: ${file}`);
+    process.stdout.write(`[startup] Applied migration: ${file}\n`);
   }
 
-  console.log("[startup] All migrations applied.");
+  process.stdout.write("[startup] All migrations applied.\n");
 }
 
 async function needsSeed(sql: ReturnType<typeof postgres>): Promise<boolean> {
@@ -44,31 +60,31 @@ async function needsSeed(sql: ReturnType<typeof postgres>): Promise<boolean> {
 }
 
 async function main() {
-  const sql = postgres(DATABASE_URL, { max: 1 });
+  process.stdout.write(`[startup] DATABASE_URL prefix: ${DATABASE_URL.slice(0, 30)}...\n`);
+
+  const sql = postgres(DATABASE_URL, { max: 1, ssl: "require" });
 
   try {
     await runMigrations(sql);
 
     const shouldSeed = await needsSeed(sql);
     if (shouldSeed) {
-      console.log("[startup] No stores found — running seed...");
-      // Import and run the seed script dynamically
+      process.stdout.write("[startup] No stores found — running seed...\n");
       const { seed } = await import("./db/seed.js");
       await seed();
-      console.log("[startup] Seed complete.");
+      process.stdout.write("[startup] Seed complete.\n");
     } else {
-      console.log("[startup] Database already seeded — skipping.");
+      process.stdout.write("[startup] Database already seeded — skipping.\n");
     }
   } finally {
     await sql.end();
   }
 
-  console.log("[startup] Starting API server...");
-  // Dynamic import starts the server defined in index.ts
+  process.stdout.write("[startup] Starting API server...\n");
   await import("./index.js");
 }
 
-main().catch((err) => {
-  console.error("[startup] Failed to start:", err);
+main().catch((err: unknown) => {
+  process.stdout.write(`[startup] FATAL: ${err instanceof Error ? err.stack : String(err)}\n`);
   process.exit(1);
 });
