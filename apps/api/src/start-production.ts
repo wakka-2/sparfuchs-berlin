@@ -38,7 +38,10 @@ const DATABASE_URL =
 async function runMigrations(sql: ReturnType<typeof postgres>) {
   process.stdout.write("[startup] Running database migrations...\n");
 
-  const migrationsDir = join(__dirname, "db", "migrations");
+  // __dirname = apps/api/dist — go up one level to reach the source tree.
+  // SQL files live in src/db/migrations/ which is always present in the repo,
+  // so we never need to copy them into dist/.
+  const migrationsDir = join(__dirname, "..", "src", "db", "migrations");
   const files = ["0000_init.sql", "0001_product_match_image.sql", "0002_is_estimated.sql"];
   for (const file of files) {
     const migrationPath = join(migrationsDir, file);
