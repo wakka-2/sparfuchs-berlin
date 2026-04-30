@@ -18,38 +18,20 @@ process.on("unhandledRejection", (reason) => {
   process.exit(1);
 });
 
-process.stdout.write("[startup] process handlers registered\n");
-
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-process.stdout.write("[startup] node built-ins imported\n");
-
 import postgres from "postgres";
+import { MIGRATIONS } from "./db/migrations-embedded.js";
 
-process.stdout.write("[startup] postgres imported — entering main()\n");
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+process.stdout.write("[startup] modules loaded — entering main()\n");
 
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/sparfuchs";
 
 async function runMigrations(sql: ReturnType<typeof postgres>) {
   process.stdout.write("[startup] Running database migrations...\n");
-
-  // __dirname = apps/api/dist — go up one level to reach the source tree.
-  // SQL files live in src/db/migrations/ which is always present in the repo,
-  // so we never need to copy them into dist/.
-  const migrationsDir = join(__dirname, "..", "src", "db", "migrations");
-  const files = ["0000_init.sql", "0001_product_match_image.sql", "0002_is_estimated.sql"];
-  for (const file of files) {
-    const migrationPath = join(migrationsDir, file);
-    const migration = readFileSync(migrationPath, "utf-8");
-    await sql.unsafe(migration);
-    process.stdout.write(`[startup] Applied migration: ${file}\n`);
+  for (const { name, sql: migrationSql } of MIGRATIONS) {
+    await sql.unsafe(migrationSql);
+    process.stdout.write(`[startup] Applied migration: ${name}\n`);
   }
-
   process.stdout.write("[startup] All migrations applied.\n");
 }
 
@@ -63,8 +45,7 @@ async function needsSeed(sql: ReturnType<typeof postgres>): Promise<boolean> {
 }
 
 async function main() {
-  process.stdout.write(`[startup] DATABASE_URL prefix: ${DATABASE_URL.slice(0, 30)}...\n`);
-
+  process.stdout.write(`[startup] Connecting to database...\n`);
   const sql = postgres(DATABASE_URL, { max: 1, ssl: "require" });
 
   try {
