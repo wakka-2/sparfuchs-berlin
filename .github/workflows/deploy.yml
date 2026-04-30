@@ -4,24 +4,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Deployment target"
-        required: false
-        default: "both"
-        type: choice
-        options: [both, api, web]
 
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false   # Never cancel a running deploy
 
-# Required secrets (set in GitHub → Settings → Secrets → Actions):
-#   RAILWAY_TOKEN         — Railway API token (railway.app/account/tokens)
-#   RAILWAY_SERVICE_ID    — Service ID of the API service in Railway
-#   VERCEL_TOKEN          — Vercel token (vercel.com/account/tokens)
-#   VERCEL_ORG_ID         — Vercel organization/team ID
-#   VERCEL_PROJECT_ID     — Vercel project ID
+# Required secrets:
+#   VERCEL_TOKEN      — vercel.com/account/tokens
+#   VERCEL_ORG_ID     — Vercel team/org ID
+#   VERCEL_PROJECT_ID — Vercel project ID
+#
+# API (Render) deploys automatically on push to main via GitHub integration.
 
 jobs:
   # ── CI gate: must pass before any deploy starts ──────────────────────────
@@ -72,58 +65,14 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
 
-  # ── Deploy API to Railway ─────────────────────────────────────────────────
-  deploy-api:
-    name: Deploy API → Railway
-    runs-on: ubuntu-latest
-    needs: ci
-    if: >
-      needs.ci.result == 'success' &&
-      (github.event.inputs.target == 'both' || github.event.inputs.target == 'api' || github.event_name == 'push')
-    environment:
-      name: production
-      url: https://api.sparfuchs-berlin.de
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Wait for Railway deployment
-        run: |
-          echo "Waiting for Railway deployment to complete..."
-          sleep 30
-
-      - name: Health check
-        run: |
-          for i in $(seq 1 10); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.sparfuchs-berlin.de/api/v1/health || echo "000")
-            echo "Attempt $i: HTTP $STATUS"
-            if [ "$STATUS" = "200" ]; then
-              echo "Health check passed!"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "Health check failed after 10 attempts"
-          exit 1
-
   # ── Deploy frontend to Vercel ─────────────────────────────────────────────
   deploy-web:
     name: Deploy Web → Vercel
     runs-on: ubuntu-latest
     needs: ci
-    if: >
-      needs.ci.result == 'success' &&
-      (github.event.inputs.target == 'both' || github.event.inputs.target == 'web' || github.event_name == 'push')
     environment:
       name: production
-      url: https://sparfuchs-berlin.de
+      url: https://sparfuchs-berlin.vercel.app
     steps:
       - uses: actions/checkout@v4
 
@@ -139,7 +88,7 @@ jobs:
       - name: Build frontend
         run: pnpm --filter @sparfuchs/shared build && pnpm --filter @sparfuchs/web build
         env:
-          VITE_API_URL: https://api.sparfuchs-berlin.de/api/v1
+          VITE_API_URL: https://sparfuchs-berlin.onrender.com/api/v1
 
       - name: Deploy to Vercel
         run: |
@@ -154,20 +103,19 @@ jobs:
   smoke-test:
     name: Production Smoke Test
     runs-on: ubuntu-latest
-    needs: [deploy-api, deploy-web]
-    if: always() && needs.deploy-api.result == 'success' && needs.deploy-web.result == 'success'
+    needs: deploy-web
     steps:
       - name: Smoke test — API health
         run: |
-          RESPONSE=$(curl -sf https://api.sparfuchs-berlin.de/api/v1/health)
+          RESPONSE=$(curl -sf https://sparfuchs-berlin.onrender.com/api/v1/health)
           echo "$RESPONSE" | grep -q '"status":"healthy"' && echo "✓ API healthy" || (echo "✗ API health check failed"; exit 1)
 
       - name: Smoke test — products endpoint
         run: |
-          COUNT=$(curl -sf "https://api.sparfuchs-berlin.de/api/v1/products?limit=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['meta']['pagination']['total_items'])")
+          COUNT=$(curl -sf "https://sparfuchs-berlin.onrender.com/api/v1/products?limit=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['meta']['pagination']['total_items'])")
           [ "$COUNT" -ge 1 ] && echo "✓ Products endpoint: $COUNT items" || (echo "✗ No products found"; exit 1)
 
       - name: Smoke test — frontend loads
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://sparfuchs-berlin.de)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://sparfuchs-berlin.vercel.app)
           [ "$STATUS" = "200" ] && echo "✓ Frontend: HTTP $STATUS" || (echo "✗ Frontend returned HTTP $STATUS"; exit 1)
