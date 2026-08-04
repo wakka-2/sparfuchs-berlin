@@ -105,6 +105,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `vercel build` runs vercel.json's installCommand on this runner, so
+      # pnpm has to be on PATH here — without it the build fails with
+      # "sh: 1: pnpm: not found".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
       - name: Deploy to Vercel
         run: |
           npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
