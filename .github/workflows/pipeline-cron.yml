@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # data-pipeline imports @sparfuchs/api/db/schema, whose package exports
+      # resolve to dist/. Without building the workspace dependencies first the
+      # run fails with ERR_MODULE_NOT_FOUND on @sparfuchs/api/dist/db/schema.js.
+      - name: Build workspace dependencies
+        run: pnpm --filter @sparfuchs/data-pipeline^... build
+
       - name: Install Playwright browsers
         run: pnpm --filter @sparfuchs/data-pipeline exec playwright install chromium --with-deps
 
