@@ -1,31 +1,26 @@
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+/**
+ * Migration CLI.
+ *
+ * Run: pnpm --filter @sparfuchs/api db:migrate
+ * The deploy workflow runs this against production before deploying.
+ */
 import postgres from "postgres";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { runMigrations } from "./migrator.js";
 
 const connectionString =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/sparfuchs";
 
-async function migrate() {
-  const sql = postgres(connectionString);
-
+async function main() {
+  const sql = postgres(connectionString, { max: 1 });
   console.log("[migrate] Running migrations...");
-
-  const files = ["0000_init.sql", "0001_product_match_image.sql", "0002_is_estimated.sql"];
-  for (const file of files) {
-    const migrationPath = join(__dirname, "migrations", file);
-    const migration = readFileSync(migrationPath, "utf-8");
-    await sql.unsafe(migration);
-    console.log(`[migrate] Applied: ${file}`);
+  try {
+    await runMigrations(sql);
+  } finally {
+    await sql.end();
   }
-
-  console.log("[migrate] All migrations complete.");
-  await sql.end();
 }
 
-migrate().catch((err) => {
+main().catch((err) => {
   console.error("[migrate] Failed:", err);
   process.exit(1);
 });

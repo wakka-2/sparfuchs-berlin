@@ -21,21 +21,12 @@ process.on("unhandledRejection", (reason) => {
 });
 
 import postgres from "postgres";
-import { MIGRATIONS } from "./db/migrations-embedded.js";
+import { runMigrations } from "./db/migrator.js";
 
 process.stdout.write("[startup] modules loaded — entering main()\n");
 
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/sparfuchs";
-
-async function runMigrations(sql: ReturnType<typeof postgres>) {
-  process.stdout.write("[startup] Running database migrations...\n");
-  for (const { name, sql: migrationSql } of MIGRATIONS) {
-    await sql.unsafe(migrationSql);
-    process.stdout.write(`[startup] Applied migration: ${name}\n`);
-  }
-  process.stdout.write("[startup] All migrations applied.\n");
-}
 
 async function needsSeed(sql: ReturnType<typeof postgres>): Promise<boolean> {
   try {
@@ -51,7 +42,8 @@ async function main() {
   const sql = postgres(DATABASE_URL, { max: 1, ssl: "require" });
 
   try {
-    await runMigrations(sql);
+    process.stdout.write("[startup] Running database migrations...\n");
+    await runMigrations(sql, (msg) => process.stdout.write(`[startup] ${msg}\n`));
 
     const shouldSeed = await needsSeed(sql);
     if (shouldSeed) {
