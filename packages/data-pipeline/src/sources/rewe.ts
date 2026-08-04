@@ -13,7 +13,11 @@
  * 5. Return matched RawProductData records
  */
 import type { RawProductData, StoreSource } from "../types.js";
-import { newPage } from "../browser.js";
+import { newPage, gotoWithRetry } from "../browser.js";
+import {
+  bestMatch,
+  CATALOG_MATCH_THRESHOLD,
+} from "../matching.js";
 
 const OFFERS_URL = "https://www.rewe.de/angebote/nationale-angebote/";
 const SEARCH_BASE = "https://www.rewe.de/suche/?search=";
@@ -94,11 +98,34 @@ function parseTileText(text: string, imgSrc: string, href: string): ScrapedOffer
   };
 }
 
-/** Load all offer tiles from the REWE national offers page. */
-async function scrapeAllOffers(
+/**
+ * Category sub-pages of the national offers page.
+ *
+ * The landing page lazy-renders only part of the weekly offers, so scraping it
+ * alone misses roughly a fifth of them (measured: 79 products from the landing
+ * page vs 101 across landing + categories, with staples such as
+ * Speisekartoffeln and Bio Bananen only present on a category page).
+ */
+const OFFER_CATEGORIES = [
+  "topangebote",
+  "rewe-bonus-produkte",
+  "thema-der-woche",
+  "obst-und-gemuese",
+  "kuehlung",
+  "schnell-und-einfach",
+  "tiefkuehl",
+  "getraenke",
+  "haushalt",
+  "drogerie",
+  "suesses-und-salziges",
+];
+
+/** Scrape one offers page (landing or category) into parsed offers. */
+async function scrapeOffersPage(
   page: import("playwright").Page,
+  url: string,
 ): Promise<ScrapedOffer[]> {
-  await page.goto(OFFERS_URL, { waitUntil: "domcontentloaded", timeout: 25000 });
+  await gotoWithRetry(page, url, { timeout: 25000 });
   await sleep(2000);
   await acceptCookies(page);
   await sleep(1500);
@@ -141,66 +168,39 @@ async function scrapeAllOffers(
   return results;
 }
 
-const COMPOUND_SAFE_WORDS = new Set([
-  "gurke", "äpfel", "trauben", "paprika", "joghurt", "tomaten", "bananen",
-  "kartoffeln", "zwiebeln", "karotten", "orangen", "zitronen", "birnen",
-]);
-
-/** Simple name similarity: normalise both strings and count shared words. */
-function nameSimilarity(a: string, b: string): number {
-  const normalise = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9äöüß\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-
-  // Score = what fraction of the catalog product's words appear in the offer name.
-  // This prevents a single shared word (e.g. "Kaffee") from matching unrelated offers.
-  const catalogWords = normalise(a);
-  const offerRawWords = normalise(b);
-  const offerSet = new Set(offerRawWords);
-  if (catalogWords.length === 0) return 0;
-
-  let matches = 0;
-  for (const cWord of catalogWords) {
-    if (offerSet.has(cWord)) {
-      matches++;
-    } else if (cWord.length >= 8 || COMPOUND_SAFE_WORDS.has(cWord)) {
-      // German compound words: "gurke" inside "minigurken", "spülmittel" inside "geschirrspülmittel"
-      if (offerRawWords.some((oWord) => oWord.includes(cWord))) matches++;
-    }
-  }
-  return matches / catalogWords.length;
-}
-
 /**
- * Return true if the catalog word appears only as an ingredient in the offer
- * (preceded by "mit" or "aus"), not as the main product.
- * E.g. "Champignons mit Frischkäse" → frischkäse is an ingredient.
+ * Load the weekly offers from the landing page plus every category sub-page,
+ * de-duplicated by product name. A failing category is skipped rather than
+ * aborting the run — partial coverage beats none.
  */
-function isIngredientOnly(offerName: string, catalogName: string): boolean {
-  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
-  return new RegExp(`\\b(mit|aus)\\b.*\\b${n(catalogName)}\\b`).test(n(offerName));
-}
+async function scrapeAllOffers(
+  page: import("playwright").Page,
+): Promise<ScrapedOffer[]> {
+  const byName = new Map<string, ScrapedOffer>();
 
-/** Find the best matching offer for a catalog product name. */
-function bestMatch(
-  productName: string,
-  offers: ScrapedOffer[],
-): ScrapedOffer | null {
-  let best: ScrapedOffer | null = null;
-  let bestScore = 0.65; // require 65% of catalog words to appear in offer name
+  const landing = await scrapeOffersPage(page, OFFERS_URL);
+  for (const offer of landing) byName.set(offer.name, offer);
+  console.log(`[rewe] Landing page: ${landing.length} tiles`);
 
-  for (const offer of offers) {
-    if (isIngredientOnly(offer.name, productName)) continue;
-    const score = nameSimilarity(productName, offer.name);
-    if (score > bestScore) {
-      bestScore = score;
-      best = offer;
+  for (const category of OFFER_CATEGORIES) {
+    try {
+      const offers = await scrapeOffersPage(page, `${OFFERS_URL}${category}/`);
+      let added = 0;
+      for (const offer of offers) {
+        if (!byName.has(offer.name)) {
+          byName.set(offer.name, offer);
+          added++;
+        }
+      }
+      console.log(`[rewe]   ${category}: ${offers.length} tiles (+${added} new)`);
+    } catch (err) {
+      console.warn(
+        `[rewe]   ${category}: skipped — ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
-  return best;
+
+  return [...byName.values()];
 }
 
 /**
@@ -213,7 +213,7 @@ async function searchCatalog(
 ): Promise<ScrapedOffer | null> {
   const url = `${SEARCH_BASE}${encodeURIComponent(productName)}`;
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    await gotoWithRetry(page, url, { timeout: 25000 });
     await sleep(2000);
     await acceptCookies(page);
 
@@ -248,17 +248,14 @@ async function searchCatalog(
       });
     });
 
-    let best: ScrapedOffer | null = null;
-    let bestScore = 0.5; // catalog search: require 50% of catalog words to match
+    const parsedItems: ScrapedOffer[] = [];
     for (const { text, imgSrc, href } of rawItems) {
       const parsed = parseTileText(text, imgSrc, href);
-      if (!parsed) continue;
-      const score = nameSimilarity(productName, parsed.name);
-      if (score > bestScore) {
-        bestScore = score;
-        best = parsed;
-      }
+      if (parsed) parsedItems.push(parsed);
     }
+    // Catalog results are already query-scoped, so a looser threshold is safe —
+    // but they still go through the ingredient/false-friend guards.
+    const best = bestMatch(productName, parsedItems, CATALOG_MATCH_THRESHOLD);
 
     if (best) {
       console.log(`[rewe] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
@@ -283,10 +280,21 @@ export class ReweSource implements StoreSource {
   ): Promise<ScrapedOffer[]> {
     if (this.offersCache) return this.offersCache;
     console.log("[rewe] Scraping weekly offers page...");
-    const offers = await scrapeAllOffers(page);
-    console.log(`[rewe] Found ${offers.length} offer tiles`);
-    this.offersCache = offers;
-    return offers;
+    try {
+      const offers = await scrapeAllOffers(page);
+      console.log(`[rewe] Found ${offers.length} offer tiles`);
+      this.offersCache = offers;
+      return offers;
+    } catch (err) {
+      // The offers page failing must not abort the whole store: fetchProduct()
+      // can still fall back to the catalog search for a regular shelf price.
+      // Cache the empty result so we don't re-attempt (and re-fail) per product.
+      console.warn(
+        `[rewe] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — continuing with catalog search only`,
+      );
+      this.offersCache = [];
+      return [];
+    }
   }
 
   async fetchProduct(

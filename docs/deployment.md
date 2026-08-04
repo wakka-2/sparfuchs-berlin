@@ -4,113 +4,116 @@
 
 | Service | Provider | Purpose |
 |---------|----------|---------|
-| API + PostgreSQL + Redis | Railway | Backend + database + cache |
-| Frontend | Vercel | React SPA |
-| Pipeline cron | Railway (separate service) | Daily price fetches |
+| API + Frontend | Vercel | Single project — SPA + `/api/**` serverless function |
+| PostgreSQL | Any managed provider | Must be reachable from Vercel's serverless functions (public host + SSL) |
+| Redis | Any managed provider (optional) | API degrades gracefully without it |
+| Pipeline cron | GitHub Actions (`pipeline-cron.yml`) | Daily price fetches |
+
+The API (`apps/api`) is a Hono app. `apps/api/src/app.ts` exports the route
+handler; `api/[[...route]].ts` at the repo root wraps it for Vercel's
+Node.js serverless runtime via `@hono/node-server/vercel`. `vercel.json`
+rewrites `/api/**` to that function and everything else to the built SPA
+(`apps/web/dist`) — so the frontend and API deploy together as one project,
+on one domain, with no CORS to worry about.
 
 ---
 
 ## Prerequisites
 
-- Railway account at railway.app
 - Vercel account at vercel.com
-- GitHub repository linked to both
+- A Postgres database reachable over the public internet (SSL) — the app
+  was previously run against a Render-provisioned Postgres instance; any
+  provider works as long as the connection string is reachable from
+  Vercel's functions
+- GitHub repository linked to Vercel
 - Pepesto API key (REWE data)
 - Apify API token (Lidl data)
 
 ---
 
-## Step 1 — Railway: PostgreSQL + Redis
-
-1. Create a new Railway project
-2. Add **PostgreSQL** service (Railway plugin) → note `DATABASE_URL`
-3. Add **Redis** service (Railway plugin) → note `REDIS_URL`
-
----
-
-## Step 2 — Railway: API Service
-
-1. Add a **New Service** → Deploy from GitHub repo
-2. Set **Root Directory** to `/` (monorepo root)
-3. Railway auto-detects `railway.json` — it uses `nixpacks.toml` for the build
-4. Set environment variables in Railway dashboard:
-
-```
-DATABASE_URL        <auto-linked from Postgres service>
-REDIS_URL           <auto-linked from Redis service>
-NODE_ENV            production
-PORT                3001
-CORS_ORIGINS        https://sparfuchs-berlin.de
-PEPESTO_API_KEY     <your key>
-PEPESTO_BASE_URL    https://api.pepesto.com
-APIFY_API_TOKEN     <your token>
-APIFY_LIDL_ACTOR_ID easyapi/lidl-product-scraper
-```
-
-5. On first deploy, `start:prod` runs migrations + seed automatically.
-6. Add a **custom domain**: `api.sparfuchs-berlin.de`
-
----
-
-## Step 3 — Railway: Pipeline Cron Service
-
-1. Add another service from the same repo
-2. Set **Start Command** to: `pnpm --filter @sparfuchs/data-pipeline start:cron`
-3. Set the same environment variables as the API service
-4. This service runs indefinitely — on startup it runs once immediately, then daily at **05:00 CET**
-5. Optional: set `PIPELINE_CRON` env var to override the schedule (default: `0 5 * * *`)
-
----
-
-## Step 4 — Vercel: Frontend
+## Step 1 — Vercel: Import the project
 
 1. Import the GitHub repository in Vercel
-2. Set **Framework Preset**: Vite
-3. Set **Build Command**: `pnpm --filter @sparfuchs/web build`
-4. Set **Output Directory**: `apps/web/dist`
-5. Set **Install Command**: `pnpm install --frozen-lockfile`
-6. Set environment variable:
+2. Vercel auto-detects `vercel.json` — build/output/install commands and the
+   `api/[[...route]].ts` function are already configured there
+3. Set environment variables in **Project Settings → Environment Variables**
+   (these are read by the serverless function at runtime, not at build time):
 
 ```
-VITE_API_URL   https://api.sparfuchs-berlin.de/api/v1
+DATABASE_URL        <your Postgres connection string>
+REDIS_URL            <your Redis connection string, optional>
+NODE_ENV             production
+CORS_ORIGINS         https://sparfuchs-berlin.vercel.app
 ```
 
-7. Add a **custom domain**: `sparfuchs-berlin.de`
+`VITE_API_URL` should be **left unset** in production — the frontend
+defaults to the relative path `/api/v1`, which resolves to the API function
+on the same domain via the `vercel.json` rewrite.
+
+4. Add a **custom domain** if desired (e.g. `sparfuchs-berlin.de`) once DNS
+   is pointed at Vercel
 
 ---
 
-## Step 5 — GitHub Actions Secrets
+## Step 2 — Database migrations
+
+The serverless function does **not** run migrations on cold start (unlike
+the old `start:prod` persistent-server entrypoint) — running schema changes
+from inside an auto-scaling function is unsafe. Migrations run as an
+explicit CI step instead:
+
+- `.github/workflows/deploy.yml` has a `migrate` job that runs
+  `pnpm --filter @sparfuchs/api db:migrate` against the `DATABASE_URL`
+  GitHub secret, before every deploy
+- To run manually: `DATABASE_URL=<prod-url> pnpm --filter @sparfuchs/api db:migrate`
+- To seed (CAUTION: overwrites product data): `DATABASE_URL=<prod-url> pnpm --filter @sparfuchs/api db:seed`
+
+---
+
+## Step 3 — Pipeline cron
+
+`.github/workflows/pipeline-cron.yml` runs the price pipeline daily via
+GitHub Actions `schedule` — no separate hosting needed. It needs the
+`DATABASE_URL` repo secret set.
+
+**Note:** GitHub automatically disables scheduled workflows after 60 days
+without a push to the repository. If prices look stale, check
+`gh workflow list --all` — if `pipeline-cron.yml` isn't listed as active,
+re-enable it with `gh workflow enable pipeline-cron.yml`.
+
+---
+
+## Step 4 — GitHub Actions Secrets
 
 Add these secrets in **GitHub → Settings → Secrets → Actions**:
 
 | Secret | How to get it |
 |--------|--------------|
-| `RAILWAY_TOKEN` | railway.app → Account → Tokens |
-| `RAILWAY_SERVICE_ID` | Railway dashboard → Service → Settings |
+| `DATABASE_URL` | Your Postgres connection string (used by the migration step) |
 | `VERCEL_TOKEN` | vercel.com → Account → Tokens |
 | `VERCEL_ORG_ID` | Vercel project settings → General |
 | `VERCEL_PROJECT_ID` | Vercel project settings → General |
 
 Once set, every push to `main` automatically:
 1. Runs the full CI suite (lint + typecheck + build + test)
-2. Deploys the API to Railway
-3. Builds and deploys the frontend to Vercel
+2. Applies database migrations
+3. Builds and deploys the frontend + API to Vercel
 4. Runs a production smoke test
 
 ---
 
-## Step 6 — Verify Production
+## Step 5 — Verify Production
 
 ```bash
 # API health
-curl https://api.sparfuchs-berlin.de/api/v1/health | jq
+curl https://sparfuchs-berlin.vercel.app/api/v1/health | jq
 
 # Products
-curl "https://api.sparfuchs-berlin.de/api/v1/products?limit=5" | jq '.data.products | length'
+curl "https://sparfuchs-berlin.vercel.app/api/v1/products?limit=5" | jq '.data.products | length'
 # Expected: 5
 
 # Search
-curl "https://api.sparfuchs-berlin.de/api/v1/products/search?q=milch" | jq '.data.results[].name'
+curl "https://sparfuchs-berlin.vercel.app/api/v1/products/search?q=milch" | jq '.data.results[].name'
 ```
 
 ---
@@ -119,26 +122,40 @@ curl "https://api.sparfuchs-berlin.de/api/v1/products/search?q=milch" | jq '.dat
 
 ### Force re-run migrations
 ```bash
-railway run --service <api-service-id> -- pnpm --filter @sparfuchs/api db:migrate
+DATABASE_URL=<prod-url> pnpm --filter @sparfuchs/api db:migrate
 ```
 
 ### Force re-seed (CAUTION: overwrites product data)
 ```bash
-railway run --service <api-service-id> -- pnpm --filter @sparfuchs/api db:seed
+DATABASE_URL=<prod-url> pnpm --filter @sparfuchs/api db:seed
 ```
 
 ### Trigger pipeline manually
 ```bash
-railway run --service <pipeline-service-id> -- pnpm --filter @sparfuchs/data-pipeline run:once
+gh workflow run pipeline-cron.yml
+# or locally: DATABASE_URL=<prod-url> pnpm --filter @sparfuchs/data-pipeline run:once
 ```
 
 ### Rollback
-Railway keeps previous deploys — click **Rollback** in the Railway dashboard.
+Vercel keeps previous deployments — use `vercel rollback` or the **Instant
+Rollback** button in the Vercel dashboard.
+
+---
+
+## Known constraints
+
+- **Serverless connection pooling**: the Postgres client (`apps/api/src/db/index.ts`)
+  uses a small pool (`max: 3`) since each concurrent Vercel function instance
+  opens its own pool — a large pool multiplied across many concurrent
+  invocations can exhaust the database's connection limit.
+- **Function duration**: `vercel.json` sets `maxDuration: 30` for the API
+  function. Verify this is within your current Vercel plan's limit before
+  relying on slow endpoints.
 
 ---
 
 ## Monitoring
 
-- **Uptime**: Add `https://api.sparfuchs-berlin.de/api/v1/health` to UptimeRobot (free)
-- **Errors**: Add `SENTRY_DSN` to both Railway services
-- **Logs**: Railway dashboard → Service → Logs (real-time streaming)
+- **Uptime**: Add `https://sparfuchs-berlin.vercel.app/api/v1/health` to UptimeRobot (free)
+- **Errors**: Add `SENTRY_DSN` as a Vercel environment variable
+- **Logs**: Vercel dashboard → Project → Logs (real-time streaming)

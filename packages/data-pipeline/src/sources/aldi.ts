@@ -13,6 +13,7 @@
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
+import { bestMatch } from "../matching.js";
 
 const OFFERS_URL = "https://www.aldi-nord.de/angebote.html";
 
@@ -137,51 +138,6 @@ async function scrapeAllOffers(
   return results;
 }
 
-const COMPOUND_SAFE_WORDS = new Set([
-  "gurke", "äpfel", "trauben", "paprika", "joghurt", "tomaten", "bananen",
-  "kartoffeln", "zwiebeln", "karotten", "orangen", "zitronen", "birnen",
-]);
-
-function nameSimilarity(a: string, b: string): number {
-  const normalise = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9äöüß\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-  const catalogWords = normalise(a);
-  const offerRawWords = normalise(b);
-  const offerSet = new Set(offerRawWords);
-  if (catalogWords.length === 0) return 0;
-  let matches = 0;
-  for (const cWord of catalogWords) {
-    if (offerSet.has(cWord)) {
-      matches++;
-    } else if (cWord.length >= 8 || COMPOUND_SAFE_WORDS.has(cWord)) {
-      if (offerRawWords.some((oWord) => oWord.includes(cWord))) matches++;
-    }
-  }
-  return matches / catalogWords.length;
-}
-
-function isIngredientOnly(offerName: string, catalogName: string): boolean {
-  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
-  return new RegExp(`\\b(mit|aus)\\b.*\\b${n(catalogName)}\\b`).test(n(offerName));
-}
-
-function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | null {
-  let best: ScrapedOffer | null = null;
-  let bestScore = 0.65;
-  for (const offer of offers) {
-    if (isIngredientOnly(offer.name, productName)) continue;
-    const score = nameSimilarity(productName, offer.name);
-    if (score > bestScore) {
-      bestScore = score;
-      best = offer;
-    }
-  }
-  return best;
-}
 
 export class AldiNordSource implements StoreSource {
   readonly storeSlug = "aldi-nord";

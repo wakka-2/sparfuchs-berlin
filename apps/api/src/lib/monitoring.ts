@@ -6,7 +6,7 @@
  *
  * To enable Sentry in production:
  *   1. pnpm --filter @sparfuchs/api add @sentry/node
- *   2. Set SENTRY_DSN in Railway environment variables
+ *   2. Set SENTRY_DSN in Vercel project environment variables
  */
 
 type SentryClient = {

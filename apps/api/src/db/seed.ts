@@ -69,9 +69,11 @@ const productDefs: ProductDef[] = [
   { de: "TK-Erbsen",                 en: "Frozen Peas",             cat: "frozen",     unit: "g"     },
   { de: "Fischstäbchen",             en: "Fish Fingers",            cat: "frozen",     unit: "g"     },
   { de: "TK-Spinat",                 en: "Frozen Spinach",          cat: "frozen",     unit: "g"     },
-  // Eggs (2)
-  { de: "Eier Freilandhaltung 10er", en: "Free-range Eggs 10pk",    cat: "eggs",       unit: "Stück" },
-  { de: "Eier Bodenhaltung 10er",    en: "Barn Eggs 10pk",          cat: "eggs",       unit: "Stück" },
+  // Eggs (1)
+  // Deliberately generic: flyers name eggs as compounds ("SONNENDORFER
+  // Körndleier"), so husbandry/pack-size qualifiers make the product
+  // unmatchable. See migration 0003_consolidate_eggs.sql.
+  { de: "Eier",                      en: "Eggs",                    cat: "eggs",       unit: "Stück" },
   // Household (4)
   { de: "Spülmittel",                en: "Dish Soap",               cat: "household",  unit: "ml"    },
   { de: "Toilettenpapier",           en: "Toilet Paper",            cat: "household",  unit: "Stück" },

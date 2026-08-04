@@ -1,10 +1,12 @@
 /**
- * Production entrypoint.
+ * Standalone production entrypoint for self-hosted / persistent-server deploys.
  *
  * Runs database migration (idempotent), optionally seeds if the stores table
- * is empty, then starts the HTTP server.
+ * is empty, then starts the HTTP server. Not used by the Vercel deployment
+ * (api/[[...route]].ts imports app.ts directly) — kept for local prod testing
+ * and any future non-serverless deploy target.
  *
- * Start command (Render / Railway):
+ * Start command:
  *   node apps/api/dist/start-production.js    (run from repo root)
  */
 
