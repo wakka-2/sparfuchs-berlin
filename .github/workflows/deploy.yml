@@ -13,8 +13,15 @@ concurrency:
 #   VERCEL_TOKEN      — vercel.com/account/tokens
 #   VERCEL_ORG_ID     — Vercel team/org ID
 #   VERCEL_PROJECT_ID — Vercel project ID
+#   DATABASE_URL      — production Postgres connection string (for migrations)
 #
-# API (Render) deploys automatically on push to main via GitHub integration.
+# Frontend AND API deploy together as a single Vercel project:
+#   apps/web builds to the static site, api/[[...route]].ts is the API
+#   serverless function (see vercel.json for build/rewrite config).
+#
+# The serverless function reads DATABASE_URL / REDIS_URL / CORS_ORIGINS at
+# runtime from Vercel's own Project → Environment Variables — set those in
+# the Vercel dashboard, they are separate from the GitHub secrets above.
 
 jobs:
   # ── CI gate: must pass before any deploy starts ──────────────────────────
@@ -65,14 +72,11 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
 
-  # ── Deploy frontend to Vercel ─────────────────────────────────────────────
-  deploy-web:
-    name: Deploy Web → Vercel
+  # ── Run database migrations ───────────────────────────────────────────────
+  migrate:
+    name: Run DB Migrations
     runs-on: ubuntu-latest
     needs: ci
-    environment:
-      name: production
-      url: https://sparfuchs-berlin.vercel.app
     steps:
       - uses: actions/checkout@v4
 
@@ -83,12 +87,23 @@ jobs:
           node-version: 22
           cache: "pnpm"
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter @sparfuchs/api...
 
-      - name: Build frontend
-        run: pnpm --filter @sparfuchs/shared build && pnpm --filter @sparfuchs/web build
+      - name: Apply migrations to production database
+        run: pnpm --filter @sparfuchs/api db:migrate
         env:
-          VITE_API_URL: https://sparfuchs-berlin.onrender.com/api/v1
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # ── Deploy (frontend + API) to Vercel ─────────────────────────────────────
+  deploy:
+    name: Deploy → Vercel
+    runs-on: ubuntu-latest
+    needs: [ci, migrate]
+    environment:
+      name: production
+      url: https://sparfuchs-berlin.vercel.app
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Deploy to Vercel
         run: |
@@ -103,16 +118,16 @@ jobs:
   smoke-test:
     name: Production Smoke Test
     runs-on: ubuntu-latest
-    needs: deploy-web
+    needs: deploy
     steps:
       - name: Smoke test — API health
         run: |
-          RESPONSE=$(curl -sf https://sparfuchs-berlin.onrender.com/api/v1/health)
+          RESPONSE=$(curl -sf https://sparfuchs-berlin.vercel.app/api/v1/health)
           echo "$RESPONSE" | grep -q '"status":"healthy"' && echo "✓ API healthy" || (echo "✗ API health check failed"; exit 1)
 
       - name: Smoke test — products endpoint
         run: |
-          COUNT=$(curl -sf "https://sparfuchs-berlin.onrender.com/api/v1/products?limit=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['meta']['pagination']['total_items'])")
+          COUNT=$(curl -sf "https://sparfuchs-berlin.vercel.app/api/v1/products?limit=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['meta']['pagination']['total_items'])")
           [ "$COUNT" -ge 1 ] && echo "✓ Products endpoint: $COUNT items" || (echo "✗ No products found"; exit 1)
 
       - name: Smoke test — frontend loads

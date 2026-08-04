@@ -13,6 +13,10 @@
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
+import {
+  bestMatch,
+  CATALOG_MATCH_THRESHOLD,
+} from "../matching.js";
 
 const OFFERS_URL = "https://www.penny.de/angebote";
 const SEARCH_BASE = "https://www.penny.de/suche?query=";
@@ -49,41 +53,41 @@ async function acceptCookies(page: import("playwright").Page) {
  * Text examples:
  *   "Nur mit App\n1.99*\nUVP 3.99\n2.29\n-50%\n-42%\nMEGGLE Streichzart*\nje 400 g (1 kg = 4.98)"
  *   "UVP 3.99\n1.79\n-55%\nSALAKIS Natur\nje 180 g (1 kg = 9.94)"
- *   "UVP 1.49\n0.69\n-55%\nPEPSI...\nje 1,25 l (1 l = 0.55)"
+ *   "Nur mit App\n3.59\nApp-preis 2.99*€\n2.99*\n-16%**\nSONNENDORFER Körndleier\nohne App: je Packung 3.59"
  *
- * The regular sale price is the first price NOT preceded by "Nur mit App" and
- * NOT prefixed by "UVP". App prices end with *.
+ * We want the price everyone pays, not the app-only price. Penny marks
+ * app-exclusive prices with a trailing asterisk ("2.99*"), so the first price
+ * WITHOUT an asterisk is the regular one. Keying off the asterisk rather than
+ * a preceding "Nur mit App" badge matters: in the third example the badge is
+ * followed by the regular price (3.59), so consuming the price after the badge
+ * would discard the regular price and report the app price instead.
  */
-function parseTileText(text: string, imgSrc: string): ScrapedOffer | null {
+export function parseTileText(text: string, imgSrc: string): ScrapedOffer | null {
   const lines = text
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const priceRe = /^(\d+)\.(\d{2})\*?$/; // "2.29" or "1.99*"
+  const priceRe = /^(\d+)\.(\d{2})(\*?)$/; // "2.29" or "1.99*" (app-only)
   const uvpRe = /^UVP\s/i;
-  const pctRe = /^-\d+%$/;
+  const pctRe = /^-\d+\s*%\**$/; // "-50%" or "-16%**"
   const appRe = /^Nur mit App$/i;
+  // Price annotations that repeat a price in prose — never a product name.
+  const annotationRe = /^(App-preis|ohne App)\b/i;
 
-  let skipNextPrice = false; // true while consuming an App-only price
   let price: number | null = null;
   const nonPriceLines: string[] = [];
 
   for (const line of lines) {
-    if (appRe.test(line)) {
-      skipNextPrice = true;
-      continue;
-    }
+    if (appRe.test(line)) continue;
     if (uvpRe.test(line)) continue;
     if (pctRe.test(line)) continue;
+    if (annotationRe.test(line)) continue;
 
     const m = line.match(priceRe);
     if (m) {
-      if (skipNextPrice) {
-        skipNextPrice = false; // consume the App price, skip it
-        continue;
-      }
-      if (price === null) {
+      const isAppOnlyPrice = m[3] === "*";
+      if (price === null && !isAppOnlyPrice) {
         price = parseFloat(`${m[1]}.${m[2]}`);
       }
       continue;
@@ -149,51 +153,6 @@ async function scrapeAllOffers(
   return results;
 }
 
-const COMPOUND_SAFE_WORDS = new Set([
-  "gurke", "äpfel", "trauben", "paprika", "joghurt", "tomaten", "bananen",
-  "kartoffeln", "zwiebeln", "karotten", "orangen", "zitronen", "birnen",
-]);
-
-function nameSimilarity(a: string, b: string): number {
-  const normalise = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9äöüß\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-  const catalogWords = normalise(a);
-  const offerRawWords = normalise(b);
-  const offerSet = new Set(offerRawWords);
-  if (catalogWords.length === 0) return 0;
-  let matches = 0;
-  for (const cWord of catalogWords) {
-    if (offerSet.has(cWord)) {
-      matches++;
-    } else if (cWord.length >= 8 || COMPOUND_SAFE_WORDS.has(cWord)) {
-      if (offerRawWords.some((oWord) => oWord.includes(cWord))) matches++;
-    }
-  }
-  return matches / catalogWords.length;
-}
-
-function isIngredientOnly(offerName: string, catalogName: string): boolean {
-  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
-  return new RegExp(`\\b(mit|aus)\\b.*\\b${n(catalogName)}\\b`).test(n(offerName));
-}
-
-function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | null {
-  let best: ScrapedOffer | null = null;
-  let bestScore = 0.65;
-  for (const offer of offers) {
-    if (isIngredientOnly(offer.name, productName)) continue;
-    const score = nameSimilarity(productName, offer.name);
-    if (score > bestScore) {
-      bestScore = score;
-      best = offer;
-    }
-  }
-  return best;
-}
 
 /**
  * Search Penny's product catalog for products not in this week's offers.
@@ -233,17 +192,14 @@ async function searchCatalog(
       });
     });
 
-    let best: ScrapedOffer | null = null;
-    let bestScore = 0.5;
+    const parsedItems: ScrapedOffer[] = [];
     for (const { text, imgSrc } of rawItems) {
       const parsed = parseTileText(text, imgSrc);
-      if (!parsed) continue;
-      const score = nameSimilarity(productName, parsed.name);
-      if (score > bestScore) {
-        bestScore = score;
-        best = parsed;
-      }
+      if (parsed) parsedItems.push(parsed);
     }
+    // Catalog results are already query-scoped, so a looser threshold is safe —
+    // but they still go through the ingredient/false-friend guards.
+    const best = bestMatch(productName, parsedItems, CATALOG_MATCH_THRESHOLD);
 
     if (best) {
       console.log(`[penny] "${productName}" → catalog "${best.name}" @ ${best.price} €`);

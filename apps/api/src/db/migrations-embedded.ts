@@ -193,4 +193,36 @@ ALTER TABLE prices
   ADD COLUMN IF NOT EXISTS is_estimated boolean NOT NULL DEFAULT false;
 `,
   },
+  {
+    name: "0003_consolidate_eggs.sql",
+    sql: `
+-- Migration 0003: consolidate the two egg SKUs into a single "Eier" product.
+-- The husbandry/pack-size qualifiers ("Freilandhaltung", "10er") never appear
+-- in flyer names, dragging every egg match to 0.33 — below the 0.65 threshold.
+-- A single generic "Eier" entry scores 1.00. Idempotent.
+
+DELETE FROM product_matches
+ WHERE product_id IN (
+   SELECT id FROM products
+    WHERE name_de IN ('Eier Freilandhaltung 10er', 'Eier Bodenhaltung 10er')
+ );
+
+DELETE FROM products
+ WHERE name_de IN ('Eier Freilandhaltung 10er', 'Eier Bodenhaltung 10er');
+
+INSERT INTO products (name_de, name_en, category_id, default_unit)
+SELECT 'Eier', 'Eggs', c.id, 'Stück'
+  FROM categories c
+ WHERE c.slug = 'eggs'
+   AND NOT EXISTS (SELECT 1 FROM products WHERE name_de = 'Eier');
+
+INSERT INTO product_matches (product_id, store_id, match_confidence, is_verified)
+SELECT p.id, s.id, 1.00, false
+  FROM products p
+ CROSS JOIN stores s
+ WHERE p.name_de = 'Eier'
+   AND s.is_active = true
+ON CONFLICT ON CONSTRAINT uq_product_store DO NOTHING;
+`,
+  },
 ];

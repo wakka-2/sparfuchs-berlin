@@ -19,9 +19,12 @@ interface WindowEntry {
 /**
  * In-memory sliding window rate limiter.
  *
- * Suitable for single-instance deployments (Railway single service).
- * For multi-instance scale-out, replace the `store` Map with a Redis
- * counter (INCR + EXPIRE) using the cache module.
+ * Each Vercel serverless invocation may land on a different, isolated
+ * instance, so this only rate-limits requests that happen to hit the same
+ * warm instance — it does not enforce a global per-IP limit across
+ * concurrent instances. Good enough as a best-effort throttle for now; for
+ * a real cross-instance limit, replace the `store` Map with a Redis counter
+ * (INCR + EXPIRE) using the cache module.
  */
 export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
   const { max, windowMs, message = "Too many requests. Please try again later." } = options;

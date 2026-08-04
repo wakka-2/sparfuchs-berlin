@@ -10,7 +10,11 @@
  * parseTile() handles both formats.
  */
 import type { RawProductData, StoreSource } from "../types.js";
-import { newPage } from "../browser.js";
+import { newPage, gotoWithRetry } from "../browser.js";
+import {
+  bestMatch,
+  CATALOG_MATCH_THRESHOLD,
+} from "../matching.js";
 
 const OFFERS_URL = "https://filiale.kaufland.de/angebote/uebersicht.html";
 const CATALOG_BASE = "https://www.kaufland.de/product-search/index/q/";
@@ -128,7 +132,7 @@ async function extractTiles(
 }
 
 async function scrapeAllOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
-  await page.goto(OFFERS_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await gotoWithRetry(page, OFFERS_URL, { timeout: 30000 });
   await sleep(3000);
   await acceptCookies(page);
   await sleep(1000);
@@ -151,61 +155,6 @@ async function scrapeAllOffers(page: import("playwright").Page): Promise<Scraped
   return results;
 }
 
-const COMPOUND_SAFE_WORDS = new Set([
-  "gurke", "äpfel", "trauben", "paprika", "joghurt", "tomaten", "bananen",
-  "kartoffeln", "zwiebeln", "karotten", "orangen", "zitronen", "birnen",
-]);
-
-function nameSimilarity(a: string, b: string): number {
-  const normalise = (s: string) =>
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9äöüß\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-  const catalogWords = normalise(a);
-  const offerRawWords = normalise(b);
-  const offerSet = new Set(offerRawWords);
-  if (catalogWords.length === 0) return 0;
-  let matches = 0;
-  for (const cWord of catalogWords) {
-    if (offerSet.has(cWord)) {
-      matches++;
-    } else if (cWord.length >= 8 || COMPOUND_SAFE_WORDS.has(cWord)) {
-      // German compound words: "gurke" inside "minigurken", "kartoffeln" inside "speisekartoffeln"
-      if (offerRawWords.some((oWord) => oWord.includes(cWord))) matches++;
-    }
-  }
-  return matches / catalogWords.length;
-}
-
-/**
- * Return true if the catalog word appears in the offer name only as an
- * ingredient (after a German preposition like "mit", "und", "aus").
- * E.g. "Gegrillte Champignons mit Frischkäse" → "Frischkäse" is an ingredient.
- */
-function isIngredientOnly(offerName: string, catalogName: string): boolean {
-  const normalise = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9äöüß\s]/g, " ").replace(/\s+/g, " ").trim();
-  const offerN = normalise(offerName);
-  const catalogN = normalise(catalogName);
-  // If offer contains "mit <catalogWord>" pattern, it's an ingredient listing
-  return new RegExp(`\\b(mit|aus)\\b.*\\b${catalogN}\\b`).test(offerN);
-}
-
-function bestMatch(productName: string, offers: ScrapedOffer[]): ScrapedOffer | null {
-  let best: ScrapedOffer | null = null;
-  let bestScore = 0.65;
-  for (const offer of offers) {
-    if (isIngredientOnly(offer.name, productName)) continue;
-    const score = nameSimilarity(productName, offer.name);
-    if (score > bestScore) {
-      bestScore = score;
-      best = offer;
-    }
-  }
-  return best;
-}
 
 /**
  * Search Kaufland's online catalog for a product not found in this week's offers.
@@ -217,7 +166,7 @@ async function searchCatalog(
 ): Promise<ScrapedOffer | null> {
   const url = `${CATALOG_BASE}${encodeURIComponent(productName)}/`;
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await gotoWithRetry(page, url, { timeout: 30000 });
     await sleep(2500);
     await acceptCookies(page);
     await sleep(500);
@@ -233,17 +182,14 @@ async function searchCatalog(
 
     const rawTiles = await extractTiles(page);
 
-    let best: ScrapedOffer | null = null;
-    let bestScore = 0.5;
+    const parsedItems: ScrapedOffer[] = [];
     for (const { text, imgAlt, imgSrc } of rawTiles.slice(0, 8)) {
       const parsed = parseTile(text, imgAlt, imgSrc);
-      if (!parsed) continue;
-      const score = nameSimilarity(productName, parsed.name);
-      if (score > bestScore) {
-        bestScore = score;
-        best = parsed;
-      }
+      if (parsed) parsedItems.push(parsed);
     }
+    // Catalog results are already query-scoped, so a looser threshold is safe —
+    // but they still go through the ingredient/false-friend guards.
+    const best = bestMatch(productName, parsedItems, CATALOG_MATCH_THRESHOLD);
 
     if (best) {
       console.log(`[kaufland] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
@@ -265,10 +211,21 @@ export class KauflandSource implements StoreSource {
   private async getOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
     if (this.offersCache) return this.offersCache;
     console.log("[kaufland] Scraping weekly offers page...");
-    const offers = await scrapeAllOffers(page);
-    console.log(`[kaufland] Found ${offers.length} offer tiles`);
-    this.offersCache = offers;
-    return offers;
+    try {
+      const offers = await scrapeAllOffers(page);
+      console.log(`[kaufland] Found ${offers.length} offer tiles`);
+      this.offersCache = offers;
+      return offers;
+    } catch (err) {
+      // The offers page failing must not abort the whole store: fetchProduct()
+      // can still fall back to the catalog search for a regular shelf price.
+      // Cache the empty result so we don't re-attempt (and re-fail) per product.
+      console.warn(
+        `[kaufland] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — continuing with catalog search only`,
+      );
+      this.offersCache = [];
+      return [];
+    }
   }
 
   async fetchProduct(

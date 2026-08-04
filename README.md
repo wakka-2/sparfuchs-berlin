@@ -55,10 +55,9 @@ packages/
 
 | Service | Provider | URL |
 |---------|----------|-----|
-| Frontend | Vercel | https://sparfuchs-berlin.de |
-| API | Railway | https://api.sparfuchs-berlin.de |
-| Database | Railway PostgreSQL | (private) |
-| Cache | Railway Redis | (private) |
+| Frontend + API | Vercel (single project) | https://sparfuchs-berlin.vercel.app |
+| Database | Postgres (private) | (private) |
+| Cache | Redis (private, optional) | (private) |
 
 Pushes to `main` trigger the [deploy workflow](.github/workflows/deploy.yml) automatically.
 See [docs/deployment.md](docs/deployment.md) for the full setup guide.
