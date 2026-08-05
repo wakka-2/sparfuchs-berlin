@@ -1,5 +1,6 @@
 import { eq, and, isNull } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
+import { closeBrowser } from "./browser.js";
 import { normalizePrice } from "./normalizer/index.js";
 import { fetchStoreProductImage } from "./sources/store-image-search.js";
 import type { StoreSource, PipelineRunResult } from "./types.js";
@@ -279,7 +280,15 @@ export async function runFullPipeline(sources: StoreSource[]): Promise<PipelineR
   return results;
 }
 
-/** Run pipeline and close DB connection (for one-shot execution) */
+/**
+ * Run the pipeline once, then release every resource that would keep the
+ * process alive.
+ *
+ * Closing the browser is not optional: browser.ts keeps one shared Chromium
+ * instance for the whole run, and leaving it open holds the event loop open
+ * too. The scrape itself takes a couple of minutes, but the process then sat
+ * idle until CI killed the job at its 30-minute timeout.
+ */
 export async function runOnce(sources: StoreSource[]): Promise<void> {
   try {
     const results = await runFullPipeline(sources);
@@ -291,6 +300,9 @@ export async function runOnce(sources: StoreSource[]): Promise<void> {
       );
     }
   } finally {
+    await closeBrowser().catch((err: unknown) =>
+      console.warn(`[pipeline] Failed to close browser: ${String(err)}`),
+    );
     await closeDb();
   }
 }
