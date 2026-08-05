@@ -1,23 +1,21 @@
 /**
- * Kaufland scraper — weekly in-store offers + catalog search fallback.
+ * Kaufland scraper — weekly in-store offers.
  *
- * Two data sources (both real, no estimation):
- * 1. Weekly offers:  filiale.kaufland.de/angebote/uebersicht.html (.k-product-tile)
- * 2. Catalog search: www.kaufland.de/product-search/index/q/{query}/ (.k-product-tile)
+ * Source: filiale.kaufland.de/angebote/uebersicht.html (.k-product-tile)
  *
- * Weekly offer tiles always carry a "-XX%" discount badge.
- * Catalog tiles show the regular shelf price without a badge.
- * parseTile() handles both formats.
+ * Offer tiles usually carry a "-XX%" discount badge; parseTile() also handles
+ * badge-less tiles, taking the first price as the regular shelf price.
+ *
+ * Products not in this week's offers get no price. Kaufland publishes no
+ * usable regular-price source: the old product-search URL 404s, and the
+ * current one is behind a Cloudflare challenge and returns marketplace
+ * listings rather than grocery shelf prices.
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage, gotoWithRetry } from "../browser.js";
-import {
-  bestMatch,
-  CATALOG_MATCH_THRESHOLD,
-} from "../matching.js";
+import { bestMatch } from "../matching.js";
 
 const OFFERS_URL = "https://filiale.kaufland.de/angebote/uebersicht.html";
-const CATALOG_BASE = "https://www.kaufland.de/product-search/index/q/";
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -156,52 +154,6 @@ async function scrapeAllOffers(page: import("playwright").Page): Promise<Scraped
 }
 
 
-/**
- * Search Kaufland's online catalog for a product not found in this week's offers.
- * Returns the regular shelf price (real price — not estimated).
- */
-async function searchCatalog(
-  page: import("playwright").Page,
-  productName: string,
-): Promise<ScrapedOffer | null> {
-  const url = `${CATALOG_BASE}${encodeURIComponent(productName)}/`;
-  try {
-    await gotoWithRetry(page, url, { timeout: 30000 });
-    await sleep(2500);
-    await acceptCookies(page);
-    await sleep(500);
-
-    // Scroll to trigger lazy-loading on the search results page
-    for (let i = 1; i <= 4; i++) {
-      await page.evaluate((f: number) => {
-        window.scrollTo(0, document.body.scrollHeight * f);
-      }, i / 4);
-      await sleep(300);
-    }
-    await sleep(1000);
-
-    const rawTiles = await extractTiles(page);
-
-    const parsedItems: ScrapedOffer[] = [];
-    for (const { text, imgAlt, imgSrc } of rawTiles.slice(0, 8)) {
-      const parsed = parseTile(text, imgAlt, imgSrc);
-      if (parsed) parsedItems.push(parsed);
-    }
-    // Catalog results are already query-scoped, so a looser threshold is safe —
-    // but they still go through the ingredient/false-friend guards.
-    const best = bestMatch(productName, parsedItems, CATALOG_MATCH_THRESHOLD);
-
-    if (best) {
-      console.log(`[kaufland] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
-    }
-    return best;
-  } catch (err) {
-    console.warn(
-      `[kaufland] catalog search failed for "${productName}": ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
-}
 
 export class KauflandSource implements StoreSource {
   readonly storeSlug = "kaufland";
@@ -217,11 +169,11 @@ export class KauflandSource implements StoreSource {
       this.offersCache = offers;
       return offers;
     } catch (err) {
-      // The offers page failing must not abort the whole store: fetchProduct()
-      // can still fall back to the catalog search for a regular shelf price.
-      // Cache the empty result so we don't re-attempt (and re-fail) per product.
+      // A failing offers page must not abort the whole store — the other
+      // stores' results are still worth committing. Cache the empty result so
+      // we don't re-attempt (and re-fail) the page once per product.
       console.warn(
-        `[kaufland] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — continuing with catalog search only`,
+        `[kaufland] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — no prices for this store`,
       );
       this.offersCache = [];
       return [];
@@ -250,22 +202,12 @@ export class KauflandSource implements StoreSource {
         };
       }
 
-      // Not on offer this week — search the catalog for the regular price
-      const catalog = await searchCatalog(page, productName);
-      if (catalog) {
-        return {
-          externalId: "",
-          name: catalog.name,
-          price: catalog.price,
-          currency: "EUR",
-          unitSize: catalog.unitSize,
-          imageUrl: catalog.imageUrl,
-          url: `${CATALOG_BASE}${encodeURIComponent(productName)}/`,
-          isEstimated: false,
-        };
-      }
-
-      console.warn(`[kaufland] No price found for "${productName}"`);
+      // No catalog-search fallback: the product-search URL returns HTTP 404,
+      // and the current one (kaufland.de/s/) is behind a Cloudflare challenge
+      // and serves marketplace listings rather than grocery shelf prices —
+      // "Eier" there returns egg cookers and egg cups. This lookup was the
+      // single biggest cost in the pipeline (~25s per product).
+      console.warn(`[kaufland] Not on offer this week: "${productName}"`);
       return null;
     } catch (err) {
       console.error(`[kaufland] Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -300,8 +242,8 @@ export class KauflandSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          // Kaufland catalog search (kaufland.de) uses a different URL/DOM structure
-          // that doesn't expose product tiles in headless. Skipping in batch runs.
+          // Not in this week's offers means no price: see the file header for
+          // why Kaufland has no usable regular-price source.
           console.warn(`[kaufland] Not on offer this week: "${product.productName}"`);
         }
       }
