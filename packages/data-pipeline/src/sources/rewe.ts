@@ -14,13 +14,9 @@
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage, gotoWithRetry } from "../browser.js";
-import {
-  bestMatch,
-  CATALOG_MATCH_THRESHOLD,
-} from "../matching.js";
+import { bestMatch } from "../matching.js";
 
 const OFFERS_URL = "https://www.rewe.de/angebote/nationale-angebote/";
-const SEARCH_BASE = "https://www.rewe.de/suche/?search=";
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -203,71 +199,6 @@ async function scrapeAllOffers(
   return [...byName.values()];
 }
 
-/**
- * Search REWE's website for a product not found in the weekly offers.
- * rewe.de/suche uses the same cor-offer-renderer-tile component as the offers page.
- */
-async function searchCatalog(
-  page: import("playwright").Page,
-  productName: string,
-): Promise<ScrapedOffer | null> {
-  const url = `${SEARCH_BASE}${encodeURIComponent(productName)}`;
-  try {
-    await gotoWithRetry(page, url, { timeout: 25000 });
-    await sleep(2000);
-    await acceptCookies(page);
-
-    // Scroll to load dynamic content
-    for (let i = 1; i <= 4; i++) {
-      await page.evaluate((f: number) => {
-        window.scrollTo(0, document.body.scrollHeight * f);
-      }, i / 4);
-      await sleep(300);
-    }
-    await sleep(1000);
-
-    const rawItems = await page.evaluate(() => {
-      // Try multiple selector patterns — search page may differ from offers page
-      const selectors = [
-        ".cor-offer-renderer-tile",
-        ".search-product-tile",
-        "[class*='product-tile']",
-        "[class*='offer-tile']",
-        "article[class*='product']",
-      ];
-      let tiles: NodeListOf<HTMLElement> | null = null;
-      for (const sel of selectors) {
-        const found = document.querySelectorAll<HTMLElement>(sel);
-        if (found.length > 0) { tiles = found; break; }
-      }
-      if (!tiles) return [];
-      return Array.from(tiles).slice(0, 8).map((tile) => {
-        const img = tile.querySelector<HTMLImageElement>("img");
-        const link = tile.closest<HTMLAnchorElement>("a") ?? tile.querySelector<HTMLAnchorElement>("a");
-        return { text: tile.innerText ?? "", imgSrc: img?.src ?? img?.dataset?.src ?? "", href: link?.href ?? "" };
-      });
-    });
-
-    const parsedItems: ScrapedOffer[] = [];
-    for (const { text, imgSrc, href } of rawItems) {
-      const parsed = parseTileText(text, imgSrc, href);
-      if (parsed) parsedItems.push(parsed);
-    }
-    // Catalog results are already query-scoped, so a looser threshold is safe —
-    // but they still go through the ingredient/false-friend guards.
-    const best = bestMatch(productName, parsedItems, CATALOG_MATCH_THRESHOLD);
-
-    if (best) {
-      console.log(`[rewe] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
-    }
-    return best;
-  } catch (err) {
-    console.warn(
-      `[rewe] catalog search failed for "${productName}": ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
-}
 
 export class ReweSource implements StoreSource {
   readonly storeSlug = "rewe";
@@ -286,11 +217,11 @@ export class ReweSource implements StoreSource {
       this.offersCache = offers;
       return offers;
     } catch (err) {
-      // The offers page failing must not abort the whole store: fetchProduct()
-      // can still fall back to the catalog search for a regular shelf price.
-      // Cache the empty result so we don't re-attempt (and re-fail) per product.
+      // A failing offers page must not abort the whole store — the other
+      // stores' results are still worth committing. Cache the empty result so
+      // we don't re-attempt (and re-fail) the page once per product.
       console.warn(
-        `[rewe] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — continuing with catalog search only`,
+        `[rewe] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — no prices for this store`,
       );
       this.offersCache = [];
       return [];
@@ -319,22 +250,11 @@ export class ReweSource implements StoreSource {
         };
       }
 
-      // Not on offer this week — search catalog for regular price
-      const catalog = await searchCatalog(page, productName);
-      if (catalog) {
-        return {
-          externalId: "",
-          name: catalog.name,
-          price: catalog.price,
-          currency: "EUR",
-          unitSize: catalog.unitSize,
-          imageUrl: catalog.imageUrl,
-          url: `${SEARCH_BASE}${encodeURIComponent(productName)}`,
-          isEstimated: false,
-        };
-      }
-
-      console.warn(`[rewe] No price found for "${productName}"`);
+      // No catalog-search fallback: rewe.de/suche renders product tiles with
+      // no prices at all (prices live on shop.rewe.de, which blocks headless
+      // browsers), so the lookup could never return a price — it only cost
+      // ~5s per product and pushed the pipeline past its timeout.
+      console.warn(`[rewe] Not on offer this week: "${productName}"`);
       return null;
     } catch (err) {
       console.error(
@@ -371,9 +291,8 @@ export class ReweSource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          // Catalog search (rewe.de/suche) renders tiles without prices —
-          // prices come from shop.rewe.de which blocks headless browsers.
-          // Skipping catalog search in batch runs; fetchProduct() still tries it.
+          // Not in this week's offers means no price: rewe.de/suche renders
+          // tiles without any prices, so there is nowhere else to look.
           console.warn(`[rewe] Not on offer this week: "${product.productName}"`);
         }
       }

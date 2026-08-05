@@ -13,13 +13,9 @@
  */
 import type { RawProductData, StoreSource } from "../types.js";
 import { newPage } from "../browser.js";
-import {
-  bestMatch,
-  CATALOG_MATCH_THRESHOLD,
-} from "../matching.js";
+import { bestMatch } from "../matching.js";
 
 const OFFERS_URL = "https://www.penny.de/angebote";
-const SEARCH_BASE = "https://www.penny.de/suche?query=";
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -154,64 +150,6 @@ async function scrapeAllOffers(
 }
 
 
-/**
- * Search Penny's product catalog for products not in this week's offers.
- * penny.de/suche uses the same .offer-tile component as the offers page.
- */
-async function searchCatalog(
-  page: import("playwright").Page,
-  productName: string,
-): Promise<ScrapedOffer | null> {
-  const url = `${SEARCH_BASE}${encodeURIComponent(productName)}`;
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
-    await sleep(2000);
-    await acceptCookies(page);
-
-    // Scroll to trigger lazy-loading
-    for (let i = 1; i <= 4; i++) {
-      await page.evaluate((f: number) => {
-        window.scrollTo(0, document.body.scrollHeight * f);
-      }, i / 4);
-      await sleep(300);
-    }
-    await sleep(1000);
-
-    const rawItems = await page.evaluate(() => {
-      // Try multiple selectors — search page may differ from offers page
-      const selectors = [".offer-tile", "[class*='offer-tile']", "[class*='product-tile']"];
-      let tiles: NodeListOf<HTMLElement> | null = null;
-      for (const sel of selectors) {
-        const found = document.querySelectorAll<HTMLElement>(sel);
-        if (found.length > 0) { tiles = found; break; }
-      }
-      if (!tiles) return [];
-      return Array.from(tiles).slice(0, 8).map((tile) => {
-        const img = tile.querySelector<HTMLImageElement>("img");
-        return { text: tile.innerText ?? "", imgSrc: img?.src ?? img?.dataset?.src ?? "" };
-      });
-    });
-
-    const parsedItems: ScrapedOffer[] = [];
-    for (const { text, imgSrc } of rawItems) {
-      const parsed = parseTileText(text, imgSrc);
-      if (parsed) parsedItems.push(parsed);
-    }
-    // Catalog results are already query-scoped, so a looser threshold is safe —
-    // but they still go through the ingredient/false-friend guards.
-    const best = bestMatch(productName, parsedItems, CATALOG_MATCH_THRESHOLD);
-
-    if (best) {
-      console.log(`[penny] "${productName}" → catalog "${best.name}" @ ${best.price} €`);
-    }
-    return best;
-  } catch (err) {
-    console.warn(
-      `[penny] catalog search failed for "${productName}": ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
-}
 
 export class PennySource implements StoreSource {
   readonly storeSlug = "penny";
@@ -249,22 +187,11 @@ export class PennySource implements StoreSource {
         };
       }
 
-      // Not on offer — search catalog for regular price
-      const catalog = await searchCatalog(page, productName);
-      if (catalog) {
-        return {
-          externalId: "",
-          name: catalog.name,
-          price: catalog.price,
-          currency: "EUR",
-          unitSize: catalog.unitSize,
-          imageUrl: catalog.imageUrl,
-          url: `${SEARCH_BASE}${encodeURIComponent(productName)}`,
-          isEstimated: false,
-        };
-      }
-
-      console.warn(`[penny] No price found for "${productName}"`);
+      // No catalog-search fallback: penny.de has no product search at all
+      // (penny.de/suche returns HTTP 404 and the site has no search form —
+      // Penny's web presence is the weekly flyer). The lookup could never
+      // return a price and only cost ~5s per product.
+      console.warn(`[penny] Not on offer this week: "${productName}"`);
       return null;
     } catch (err) {
       console.error(`[penny] Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -296,8 +223,8 @@ export class PennySource implements StoreSource {
             isEstimated: false,
           });
         } else {
-          // Penny search (penny.de/suche) does not render product tiles in headless.
-          // Skipping catalog search in batch runs; fetchProduct() still tries it.
+          // Not in this week's offers means no price: penny.de has no product
+          // search at all, so there is nowhere else to look.
           console.warn(`[penny] Not on offer this week: "${product.productName}"`);
         }
       }
