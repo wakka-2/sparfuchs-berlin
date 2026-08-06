@@ -129,28 +129,61 @@ async function extractTiles(
   });
 }
 
+/**
+ * Scroll the page, tolerating navigation mid-scroll.
+ *
+ * The offers page auto-advances through its category carousel, rewriting the
+ * URL (?kloffer-category=...) about a dozen times after load. Any evaluate()
+ * that lands during one of those navigations throws "Execution context was
+ * destroyed", so scrolling is best-effort: a lost step just means one less
+ * lazy-load nudge, not a failed scrape.
+ */
+async function scrollThrough(page: import("playwright").Page, steps: number): Promise<void> {
+  for (let i = 1; i <= steps; i++) {
+    try {
+      await page.evaluate((f: number) => {
+        window.scrollTo(0, document.body.scrollHeight * f);
+      }, i / steps);
+    } catch {
+      // navigated mid-scroll — keep going
+    }
+    await sleep(400);
+  }
+}
+
 async function scrapeAllOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
   await gotoWithRetry(page, OFFERS_URL, { timeout: 30000 });
-  await sleep(3000);
+
+  // Wait for the carousel's redirect storm to settle before touching the DOM.
+  // Without this the very first evaluate() reliably dies with "Execution
+  // context was destroyed" and the store yields zero prices.
+  await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+  await sleep(2000);
+
   await acceptCookies(page);
   await sleep(1000);
 
-  const scrollSteps = 12;
-  for (let i = 1; i <= scrollSteps; i++) {
-    await page.evaluate((f: number) => {
-      window.scrollTo(0, document.body.scrollHeight * f);
-    }, i / scrollSteps);
-    await sleep(400);
-  }
+  await scrollThrough(page, 12);
   await sleep(2500);
 
-  const rawTiles = await extractTiles(page);
-  const results: ScrapedOffer[] = [];
+  // One retry: if a late navigation lands here, the DOM is still there
+  // afterwards — only the execution context was replaced.
+  let rawTiles: Array<{ text: string; imgAlt: string; imgSrc: string }>;
+  try {
+    rawTiles = await extractTiles(page);
+  } catch {
+    await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+    await sleep(1500);
+    rawTiles = await extractTiles(page);
+  }
+
+  // The carousel means the same article can appear under several categories.
+  const byName = new Map<string, ScrapedOffer>();
   for (const { text, imgAlt, imgSrc } of rawTiles) {
     const parsed = parseTile(text, imgAlt, imgSrc);
-    if (parsed) results.push(parsed);
+    if (parsed && !byName.has(parsed.name)) byName.set(parsed.name, parsed);
   }
-  return results;
+  return [...byName.values()];
 }
 
 
