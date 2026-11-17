@@ -8,6 +8,7 @@ import { PriceKind } from "../components/PriceKind";
 import { ProductGridSkeleton } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
 import { Icon } from "../components/Icon";
+import { track } from "../lib/analytics";
 
 const STORES = [
   { slug: "rewe", name: "REWE" },
@@ -47,6 +48,10 @@ export function OffersPage() {
     }
     setParams(sp, { replace: true });
   };
+
+  useEffect(() => {
+    if (q) track("search", { search_term: q, source: "offers" });
+  }, [q]);
 
   // Debounce typing into the URL; a search needs at least 2 characters.
   useEffect(() => {
@@ -209,7 +214,7 @@ function OfferCard({ offer, lang }: { offer: StoreOffer; lang: string }) {
   return (
     <li>
       {offer.url ? (
-        <a href={offer.url} target="_blank" rel="noopener noreferrer" className={cls} aria-label={t("offers.openAt", { name: offer.name, store: offer.store_name })}>
+        <a href={offer.url} onClick={() => track("view_offer", { store: offer.store_slug, item_name: offer.name })} target="_blank" rel="noopener noreferrer" className={cls} aria-label={t("offers.openAt", { name: offer.name, store: offer.store_name })}>
           {body}
         </a>
       ) : (

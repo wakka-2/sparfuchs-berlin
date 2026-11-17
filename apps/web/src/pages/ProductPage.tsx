@@ -8,6 +8,7 @@ import { ErrorState } from "../components/ErrorState";
 import { StoreBadge } from "../components/StoreBadge";
 import { Icon } from "../components/Icon";
 import { PriceKind } from "../components/PriceKind";
+import { track } from "../lib/analytics";
 import { categoryIcon } from "../lib/categoryIcon";
 
 export function ProductPage() {
@@ -119,6 +120,7 @@ export function ProductPage() {
                 {price.external_url && (
                   <a
                     href={price.external_url}
+                    onClick={() => track("view_offer", { store: price.store_slug, item_name: product.name })}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"

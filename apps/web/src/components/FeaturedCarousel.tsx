@@ -5,6 +5,7 @@ import type { FeaturedOffer } from "../lib/featured";
 import { formatValidUntil } from "../lib/format";
 import { AddToListButton } from "./AddToListButton";
 import { Icon } from "./Icon";
+import { track } from "../lib/analytics";
 
 const INTERVAL_MS = 5000;
 
@@ -94,6 +95,7 @@ export function FeaturedCarousel({ offers }: { offers: FeaturedOffer[] }) {
                   <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-5">
                     <Link
                       to={`/produkt/${o.product.id}`}
+                      onClick={() => track("select_promotion", { promotion_name: o.product.name, creative_slot: i + 1 })}
                       className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-white px-5 font-semibold text-brand-800 transition hover:bg-brand-50"
                     >
                       {t("featured.cta")}

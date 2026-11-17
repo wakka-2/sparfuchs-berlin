@@ -190,5 +190,13 @@
     "ended": "This week's offers have ended.",
     "srEnds": "Offers are valid until {{date}} – new weekly offers from {{next}}",
     "srStarts": "New weekly offers from {{next}}"
+  },
+  "consent": {
+    "title": "May Sparfuchs measure how the site is used?",
+    "text": "With your consent we use Google Analytics to see which offers people look for. Without it, nothing is loaded.",
+    "more": "More in the privacy policy",
+    "decline": "Decline",
+    "accept": "Accept",
+    "settings": "Cookie settings"
   }
 }
