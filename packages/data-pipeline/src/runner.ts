@@ -88,6 +88,7 @@ export async function runPipelineForStore(
       productId: schema.products.id,
       productName: schema.products.nameDe,
       previousUnitCents: schema.prices.unitPriceCents,
+      previousName: schema.productMatches.externalName,
     })
     .from(schema.productMatches)
     .innerJoin(schema.products, eq(schema.products.id, schema.productMatches.productId))
@@ -111,10 +112,13 @@ export async function runPipelineForStore(
     // (unless a person approved that exact price) and the next one is tried.
     let hit;
     for (const cand of ranked.get(match.productName) ?? []) {
+      // A 3x jump only means something for the same listing (usually a parse
+      // error); switching to a different, cheaper product is expected.
+      const sameListing = match.previousName === cand.offer.name && match.previousUnitCents != null;
       const problem = priceProblem(
         match.productName,
         cand.unitPrice,
-        match.previousUnitCents == null ? null : match.previousUnitCents / 100,
+        sameListing ? match.previousUnitCents! / 100 : null,
       );
       if (!problem || approvedPrices.has(priceKey(cand.offer.name, match.productId, toCents(cand.offer.price)))) {
         hit = cand;

@@ -48,7 +48,14 @@ export function parseReweTiles(tiles: ReweTile[], validUntil: string): Offer[] {
 
 async function scrapeTiles(page: Page, url: string): Promise<ReweTile[]> {
   await gotoWithRetry(page, url);
-  await page.waitForSelector(".cor-offer-renderer-tile", { state: "attached", timeout: 20_000 });
+  try {
+    await page.waitForSelector(".cor-offer-renderer-tile", { state: "attached", timeout: 20_000 });
+  } catch {
+    // Say what the page showed instead (slow load? a bot check?) so the log explains the failure.
+    const title = await page.title().catch(() => "");
+    const text = await page.evaluate(() => document.body?.innerText ?? "").catch(() => "");
+    throw new Error(`no offer tiles after 20s — page "${title}": ${text.replace(/\s+/g, " ").slice(0, 160)}`);
+  }
 
   // Consent banner (Usercentrics, shadow DOM) — harmless if absent.
   await page
@@ -90,6 +97,17 @@ export class ReweSource implements StoreSource {
   readonly storeSlug = "rewe";
 
   async fetchOffers(): Promise<Offer[]> {
+    try {
+      return await this.fetchOnce();
+    } catch (error) {
+      // One retry with a fresh page for a slow load; a second failure is reported.
+      console.warn(`[rewe] first attempt failed (${error instanceof Error ? error.message : String(error)}), retrying once`);
+      await new Promise((r) => setTimeout(r, 10_000));
+      return this.fetchOnce();
+    }
+  }
+
+  private async fetchOnce(): Promise<Offer[]> {
     const page = await newPage();
     try {
       // Same product can appear in two sections — keep one per name + size.
