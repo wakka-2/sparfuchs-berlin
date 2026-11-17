@@ -2,10 +2,13 @@ import { useParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { fetchProduct } from "../lib/api";
 import { useApi } from "../hooks/useApi";
-import { SavingsBadge } from "../components/SavingsBadge";
+import { formatValidUntil } from "../lib/format";
 import { AddToListButton } from "../components/AddToListButton";
 import { PriceHistory } from "../components/PriceHistory";
 import { ErrorState } from "../components/ErrorState";
+import { StoreBadge } from "../components/StoreBadge";
+import { Icon } from "../components/Icon";
+import { categoryIcon } from "../lib/categoryIcon";
 
 export function ProductPage() {
   const { t, i18n } = useTranslation();
@@ -14,114 +17,129 @@ export function ProductPage() {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-6 w-48 rounded bg-gray-200" />
-        <div className="h-48 rounded-xl bg-gray-200" />
-        <div className="flex gap-4">
-          <div className="h-24 w-1/2 rounded-lg bg-gray-200" />
-          <div className="h-24 w-1/2 rounded-lg bg-gray-200" />
+      <div className="animate-pulse space-y-6">
+        <div className="h-4 w-48 rounded bg-surface" />
+        <div className="grid gap-6 md:grid-cols-[320px_1fr]">
+          <div className="h-72 rounded-3xl bg-surface" />
+          <div className="space-y-3"><div className="h-24 rounded-2xl bg-surface" /><div className="h-24 rounded-2xl bg-surface" /></div>
         </div>
       </div>
     );
   }
-
   if (error) return <ErrorState message={error} />;
   if (!product) return <ErrorState message={t("common.noResults")} />;
 
-  const dateFmt = i18n.language === "de" ? "de-DE" : "en-GB";
+  const best = product.prices[0];
+  const maxUnit = Math.max(...product.prices.map((p) => p.unit_price_cents), 1);
+  const image = best?.store_image_url ?? product.image_url;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500">
-        <Link to="/" className="hover:text-green-700">
-          {t("common.home")}
-        </Link>
-        <span className="mx-2">/</span>
-        <Link to={`/kategorie/${product.category.slug}`} className="hover:text-green-700">
-          {product.category.name}
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-gray-900">{product.name}</span>
+    <div className="space-y-8">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-ink-subtle">
+        <Link to="/" className="rounded px-1 hover:text-brand-700">{t("common.home")}</Link>
+        <Icon name="chevronRight" className="h-4 w-4" />
+        <Link to={`/kategorie/${product.category.slug}`} className="rounded px-1 hover:text-brand-700">{product.category.name}</Link>
+        <Icon name="chevronRight" className="h-4 w-4" />
+        <span aria-current="page" className="px-1 text-ink">{product.name}</span>
       </nav>
 
-      {/* Product header */}
-      <div className="flex flex-col gap-6 sm:flex-row">
-        <div className="flex h-48 w-full items-center justify-center rounded-xl bg-gray-100 sm:h-56 sm:w-56">
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="h-full w-auto object-contain" />
+      <div className="grid gap-6 md:grid-cols-[320px_1fr]">
+        <div className="flex h-72 items-center justify-center rounded-3xl border border-line bg-white p-6">
+          {image ? (
+            <img src={image} alt={best?.external_name ?? product.name} className="max-h-full w-auto object-contain" />
           ) : (
-            <span className="text-5xl text-gray-300">📦</span>
+            <Icon name={categoryIcon(product.category.slug)} className="h-16 w-16 text-line" />
           )}
         </div>
 
-        <div className="flex-1 space-y-3">
-          <h1 className="text-2xl font-bold">{product.name}</h1>
-          {product.name_de !== product.name_en && product.name_en && (
-            <p className="text-sm text-gray-500">{product.name_en}</p>
-          )}
-          <p className="text-sm text-gray-500">
-            {t("product.unit")}: {product.default_unit}
-          </p>
-          {product.savings && <SavingsBadge savings={product.savings} />}
-          <div className="max-w-xs">
-            <AddToListButton productId={product.id} productName={product.name} />
+        <div className="flex flex-col gap-4">
+          <div>
+            <h1 className="text-3xl font-bold sm:text-4xl">{product.name}</h1>
+            {i18n.language === "de" && product.name_en && <p className="mt-1 text-ink-subtle">{product.name_en}</p>}
           </div>
+
+          {best ? (
+            <div className="rounded-2xl bg-brand-800 p-5 text-white">
+              <p className="text-sm text-brand-200">{t("product.bestThisWeek")}</p>
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-3">
+                <span className="tabular font-display text-4xl font-bold">{best.unit_price_formatted}</span>
+                <span className="text-lg">{t("search.at")} {best.store_name}</span>
+              </p>
+              {product.savings && product.savings.percentage >= 1 && (
+                <p className="mt-2 inline-flex rounded-full bg-deal-500 px-3 py-1 text-sm font-bold text-ink">
+                  {t("product.savingVsDearest", { pct: Math.round(product.savings.percentage) })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-line bg-surface p-5 text-ink-muted">
+              <p className="font-semibold text-ink">{t("product.noOfferTitle")}</p>
+              <p className="mt-1 text-sm">{t("product.noOfferHint")}</p>
+            </div>
+          )}
+
+          <div className="max-w-sm"><AddToListButton productId={product.id} productName={product.name} /></div>
         </div>
       </div>
 
-      {/* Price comparison */}
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">{t("product.priceComparison")}</h2>
-        {product.prices.length === 0 ? (
-          <p className="text-gray-500">{t("product.noPrices")}</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {product.prices.map((price) => (
-              <div
+      {product.prices.length > 0 && (
+        <section aria-labelledby="compare-heading">
+          <h2 id="compare-heading" className="text-2xl font-semibold">{t("product.priceComparison")}</h2>
+          <p className="mt-1 text-sm text-ink-muted">{t("product.compareHint")}</p>
+          <ol className="mt-4 space-y-3">
+            {product.prices.map((price, i) => (
+              <li
                 key={price.store_slug}
-                className="rounded-xl border-2 p-4"
-                style={{ borderColor: price.store_color ?? "#ddd" }}
+                className={`rounded-2xl border bg-surface p-4 sm:p-5 ${i === 0 ? "border-brand-500 ring-1 ring-brand-500" : "border-line"}`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold" style={{ color: price.store_color ?? "#333" }}>
-                    {price.store_name}
-                  </span>
-                  {price.is_cheapest && (
-                    <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                      {t("product.cheaper")}
-                    </span>
-                  )}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg"><StoreBadge name={price.store_name} color={price.store_color} strong /></span>
+                      {i === 0 && (
+                        <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-brand-800">
+                          {t("product.cheapest")}
+                        </span>
+                      )}
+                    </div>
+                    {price.external_name && <p className="mt-1 font-medium">{price.external_name}</p>}
+                    <p className="tabular text-sm text-ink-muted">{price.price_formatted} · {price.unit_size}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="tabular font-display text-2xl font-bold">{price.unit_price_formatted}</p>
+                    {price.valid_until && (
+                      <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-ink-subtle">
+                        <Icon name="calendar" className="h-3.5 w-3.5" />
+                        {t("product.validUntil", { date: formatValidUntil(price.valid_until, i18n.language) })}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-2 text-3xl font-bold">{price.price_formatted}</div>
-                <div className="mt-1 text-sm text-gray-500">
-                  {price.unit_size} &middot; {price.unit_price_formatted}
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true">
+                  <div
+                    className={`h-full rounded-full ${i === 0 ? "bg-brand-500" : "bg-ink-subtle/40"}`}
+                    style={{ width: `${Math.max(8, (price.unit_price_cents / maxUnit) * 100)}%` }}
+                  />
                 </div>
-                {price.external_name && (
-                  <p className="mt-2 text-xs text-gray-400">{price.external_name}</p>
-                )}
                 {price.external_url && (
                   <a
                     href={price.external_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-block text-xs text-green-700 hover:underline"
+                    className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900"
                   >
-                    {t("product.viewInShop")}
+                    {t("product.viewOffer", { store: price.store_name })}
+                    <Icon name="external" className="h-4 w-4" />
                   </a>
                 )}
-                <div className="mt-2 text-xs text-gray-400">
-                  {t("product.updated")}: {new Date(price.fetched_at).toLocaleDateString(dateFmt)}
-                </div>
-              </div>
+              </li>
             ))}
-          </div>
-        )}
-      </section>
+          </ol>
+        </section>
+      )}
 
-      {/* Price history */}
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">{t("history.title")}</h2>
+      <section aria-labelledby="history-heading">
+        <h2 id="history-heading" className="mb-4 text-2xl font-semibold">{t("history.title")}</h2>
         <PriceHistory productId={product.id} />
       </section>
     </div>

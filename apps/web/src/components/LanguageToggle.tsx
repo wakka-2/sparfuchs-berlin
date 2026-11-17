@@ -2,21 +2,21 @@ import { useTranslation } from "react-i18next";
 
 export function LanguageToggle() {
   const { i18n } = useTranslation();
-  const currentLang = i18n.language;
-
-  const toggle = () => {
-    const next = currentLang === "de" ? "en" : "de";
-    i18n.changeLanguage(next);
-    localStorage.setItem("sparfuchs-lang", next);
-  };
+  const next = i18n.language === "de" ? "en" : "de";
 
   return (
     <button
-      onClick={toggle}
-      className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
-      aria-label={`Switch to ${currentLang === "de" ? "English" : "Deutsch"}`}
+      type="button"
+      onClick={() => {
+        i18n.changeLanguage(next);
+        try { localStorage.setItem("sparfuchs-lang", next); } catch { /* private mode */ }
+        document.documentElement.lang = next;
+      }}
+      className="flex h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line px-2 text-sm font-bold text-ink-muted transition hover:bg-canvas hover:text-ink"
+      aria-label={next === "en" ? "Switch to English" : "Auf Deutsch umschalten"}
+      lang={next}
     >
-      {currentLang === "de" ? "EN" : "DE"}
+      {next.toUpperCase()}
     </button>
   );
 }

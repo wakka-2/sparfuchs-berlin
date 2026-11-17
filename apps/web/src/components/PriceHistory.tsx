@@ -16,15 +16,15 @@ export function PriceHistory({ productId }: PriceHistoryProps) {
   if (loading) {
     return (
       <div className="animate-pulse space-y-2">
-        <div className="h-4 w-32 rounded bg-gray-200" />
-        <div className="h-20 rounded bg-gray-200" />
+        <div className="h-4 w-32 rounded bg-surface" />
+        <div className="h-20 rounded bg-surface" />
       </div>
     );
   }
 
   if (!history || history.length === 0) {
     return (
-      <p className="text-sm text-gray-400">{t("history.noData")}</p>
+      <p className="text-ink-muted">{t("history.noData")}</p>
     );
   }
 
@@ -39,7 +39,7 @@ export function PriceHistory({ productId }: PriceHistoryProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 sm:grid-cols-2">
       {Array.from(byStore.entries()).map(([slug, entries]) => {
         const storeName = entries[0].store_name;
         const storeColor = entries[0].store_color;
@@ -52,23 +52,23 @@ export function PriceHistory({ productId }: PriceHistoryProps) {
             >
               {storeName}
             </h4>
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-hidden rounded-2xl border border-line bg-surface">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-xs text-gray-500">
+                <thead className="bg-canvas text-xs uppercase tracking-wide text-ink-subtle">
                   <tr>
                     <th className="px-3 py-2">{t("history.price")}</th>
                     <th className="px-3 py-2">{t("history.from")}</th>
                     <th className="px-3 py-2">{t("history.until")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-line">
                   {entries.map((entry, i) => (
-                    <tr key={i} className={i === 0 ? "bg-green-50 font-medium" : ""}>
-                      <td className="px-3 py-2">{entry.price_formatted}</td>
-                      <td className="px-3 py-2 text-gray-500">
+                    <tr key={i} className={i === 0 ? "bg-brand-50 font-semibold" : ""}>
+                      <td className="tabular px-3 py-2">{entry.price_formatted}</td>
+                      <td className="px-3 py-2 text-ink-muted">
                         {new Date(entry.valid_from).toLocaleDateString(dateFmt)}
                       </td>
-                      <td className="px-3 py-2 text-gray-500">
+                      <td className="px-3 py-2 text-ink-muted">
                         {entry.valid_until
                           ? new Date(entry.valid_until).toLocaleDateString(dateFmt)
                           : t("history.current")}

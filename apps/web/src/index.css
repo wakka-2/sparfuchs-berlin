@@ -1,1 +1,56 @@
 @import "tailwindcss";
+
+/* Design tokens — fresh green for "saving", amber for "deal". */
+@theme {
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Lexend", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-200: #a7f3d0;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-800: #065f46;
+  --color-brand-900: #064e3b;
+
+  --color-deal-50: #fffbeb;
+  --color-deal-100: #fef3c7;
+  --color-deal-500: #f59e0b;
+  --color-deal-600: #d97706;
+  --color-deal-700: #b45309;
+
+  --color-ink: #0f172a;
+  --color-ink-muted: #475569;
+  --color-ink-subtle: #64748b;
+  --color-surface: #ffffff;
+  --color-canvas: #f6f8f7;
+  --color-line: #e2e8e5;
+
+  --animate-rise: rise 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  h1, h2, h3 { @apply font-display tracking-tight; }
+  button, a, [role="button"] { touch-action: manipulation; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-brand-600; }
+}
+
+@utility tabular { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

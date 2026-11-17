@@ -87,10 +87,10 @@ export async function seed() {
   console.log("[seed] Seeding catalog (stores, categories, products, matches)...");
 
   // ── Stores ───────────────────────────────────────────────────────────────
+  // No Lidl: it publishes no grocery prices online (see migration 0004).
   const storeRows = await sql`
     INSERT INTO stores (name, slug, website_url, color_hex) VALUES
       ('REWE',      'rewe',      'https://www.rewe.de',      '#CC0000'),
-      ('Lidl',      'lidl',      'https://www.lidl.de',      '#0050AA'),
       ('Penny',     'penny',     'https://www.penny.de',     '#E30613'),
       ('Aldi Nord', 'aldi-nord', 'https://www.aldi-nord.de', '#00508F'),
       ('Kaufland',  'kaufland',  'https://www.kaufland.de',  '#E2001A')

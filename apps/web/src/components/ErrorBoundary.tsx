@@ -35,16 +35,16 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 px-4 text-center">
           <span className="text-5xl" aria-hidden="true">⚠️</span>
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl font-semibold text-ink">
             Etwas ist schiefgelaufen / Something went wrong
           </h2>
-          <p className="max-w-md text-sm text-gray-500">
+          <p className="max-w-md text-sm text-ink-muted">
             {this.state.error?.message ?? "Ein unbekannter Fehler ist aufgetreten."}
           </p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
           >
             Seite neu laden / Reload
           </button>

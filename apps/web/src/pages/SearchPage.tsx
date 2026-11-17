@@ -2,23 +2,15 @@ import { useSearchParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { searchProducts } from "../lib/api";
 import { useApi } from "../hooks/useApi";
-import { ProductGridSkeleton } from "../components/Skeleton";
+import { formatCents } from "../lib/format";
 import { ErrorState } from "../components/ErrorState";
-
-function formatCents(cents: number): string {
-  return (
-    (cents / 100).toLocaleString("de-DE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }) + " \u20AC"
-  );
-}
+import { Icon } from "../components/Icon";
+import { categoryIcon } from "../lib/categoryIcon";
 
 export function SearchPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
-
   const { data: results, loading, error } = useApi(
     () => (query.length >= 2 ? searchProducts(query, 20) : Promise.resolve([])),
     [query],
@@ -26,46 +18,37 @@ export function SearchPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">
-        {t("search.resultsFor")} &ldquo;{query}&rdquo;
-      </h1>
-
+      <h1 className="text-3xl font-bold">{t("search.resultsFor")} „{query}“</h1>
       {loading ? (
-        <ProductGridSkeleton count={4} />
+        <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface" />)}</div>
       ) : error ? (
         <ErrorState message={error} />
       ) : results?.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-lg text-gray-500">{t("common.noResults")}</p>
-          <p className="mt-2 text-sm text-gray-400">{t("common.tryDifferent")}</p>
+        <div className="rounded-2xl border border-line bg-surface py-12 text-center">
+          <p className="text-lg font-semibold">{t("common.noResults")}</p>
+          <p className="mt-1 text-ink-muted">{t("common.tryDifferent")}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {results?.map((result) => (
-            <Link
-              key={result.id}
-              to={`/produkt/${result.id}`}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 transition hover:shadow-md"
-            >
-              <div>
-                <h3 className="font-semibold">{result.name}</h3>
-                <p className="text-xs text-gray-500">{result.category_slug}</p>
-              </div>
-              {result.cheapest_price_cents != null && (
-                <div className="text-right">
-                  <p className="text-lg font-bold text-green-700">
-                    {t("search.from")} {formatCents(result.cheapest_price_cents)}
-                  </p>
-                  {result.cheapest_store_slug && (
-                    <p className="text-xs text-gray-500">
-                      {t("search.at")} {result.cheapest_store_slug.charAt(0).toUpperCase() + result.cheapest_store_slug.slice(1)}
-                    </p>
-                  )}
-                </div>
-              )}
-            </Link>
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+          {results?.map((r) => (
+            <li key={r.id}>
+              <Link to={`/produkt/${r.id}`} className="flex min-h-16 items-center gap-4 px-4 py-3 hover:bg-canvas">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-800" aria-hidden="true">
+                  <Icon name={categoryIcon(r.category_slug)} className="h-5 w-5" />
+                </span>
+                <span className="flex-1 font-semibold">{r.name}</span>
+                {r.cheapest_price_cents != null ? (
+                  <span className="tabular text-right font-semibold text-brand-700">
+                    {t("search.from")} {formatCents(r.cheapest_price_cents, i18n.language)}
+                  </span>
+                ) : (
+                  <span className="text-sm text-ink-subtle">{t("search.noOffer")}</span>
+                )}
+                <Icon name="chevronRight" className="h-5 w-5 text-ink-subtle" />
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

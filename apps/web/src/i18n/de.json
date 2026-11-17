@@ -4,7 +4,7 @@
     "list": "Liste",
     "info": "Info",
     "search": "Suchen",
-    "searchPlaceholder": "Produkt suchen... z.B. Milch, Butter",
+    "searchPlaceholder": "Produkt suchen, z. B. Butter",
     "allProducts": "Alle Produkte",
     "categories": "Kategorien",
     "all": "Alle",
@@ -16,15 +16,30 @@
     "error": "Etwas ist schiefgelaufen",
     "retry": "Erneut versuchen",
     "home": "Startseite",
-    "back": "Zurück"
+    "back": "Zurück",
+    "mainNav": "Hauptnavigation",
+    "skipToContent": "Zum Inhalt springen"
   },
   "home": {
-    "title": "Supermarkt-Preise vergleichen",
-    "subtitle": "Finde die günstigsten Preise in Berlin — REWE, Lidl und mehr.",
-    "noProducts": "Noch keine Produkte vorhanden."
+    "title": "Diese Woche günstiger einkaufen",
+    "subtitle": "Die Wochenangebote von REWE, Penny, Aldi Nord und Kaufland — verglichen pro Kilo, Liter oder Stück.",
+    "noProducts": "Noch keine Produkte vorhanden.",
+    "weekBadge": "Angebote gültig bis {{date}}",
+    "weekBadgeNoDate": "Aktuelle Wochenangebote",
+    "statProducts": "Produkte im Angebot",
+    "statStores": "Märkte verglichen",
+    "comparing": "Im Vergleich:",
+    "topSavings": "Größte Ersparnis",
+    "topSavingsHint": "pro Einheit, günstigster vs. teuerster Markt",
+    "onOfferCount_one": "{{count}} im Angebot",
+    "onOfferCount_other": "{{count}} im Angebot",
+    "notOnOffer": "Diese Woche nicht im Angebot",
+    "notOnOfferHint": "Für diese Produkte hat gerade kein Markt ein Angebot. Wir zeigen keine alten oder geschätzten Preise."
   },
   "category": {
-    "noProducts": "Keine Produkte in dieser Kategorie."
+    "noProducts": "Keine Produkte in dieser Kategorie.",
+    "summary": "{{onOffer}} von {{total}} Produkten diese Woche im Angebot",
+    "noOffers": "In dieser Kategorie ist diese Woche nichts im Angebot."
   },
   "product": {
     "noPrices": "Keine Preise verfügbar",
@@ -33,10 +48,20 @@
     "priceComparison": "Preisvergleich",
     "viewInShop": "Im Shop ansehen",
     "updated": "Aktualisiert",
-    "addToList": "+ Zur Liste",
-    "onList": "✓ Auf der Liste",
+    "addToList": "Zur Einkaufsliste",
+    "onList": "Auf der Liste",
     "notAvailable": "Nicht verfügbar",
-    "notAvailableList": "Nicht verfügbar: {{products}}"
+    "notAvailableList": "Nicht verfügbar: {{products}}",
+    "addNamedToList": "{{name}} zur Liste hinzufügen",
+    "removeFromList": "{{name}} von der Liste entfernen",
+    "validUntil": "gültig bis {{date}}",
+    "bestThisWeek": "Bester Preis diese Woche",
+    "savingVsDearest": "{{pct}} % günstiger als im teuersten Markt",
+    "noOfferTitle": "Diese Woche in keinem Angebot",
+    "noOfferHint": "Sobald ein Markt dieses Produkt im Prospekt hat, erscheint es hier.",
+    "compareHint": "Sortiert nach Preis pro Einheit — so sind unterschiedliche Packungsgrößen vergleichbar.",
+    "cheapest": "Günstigster",
+    "viewOffer": "Angebot bei {{store}} ansehen"
   },
   "basket": {
     "title": "Einkaufsliste",
@@ -45,7 +70,7 @@
     "browseProducts": "Produkte ansehen",
     "clearList": "Liste leeren",
     "priceComparison": "Preisvergleich",
-    "cheapest": "Günstigster",
+    "cheapest": "am günstigsten",
     "available": "{{available}} von {{total}} Produkten verfügbar",
     "savings": "Du sparst bis zu {{amount}}",
     "items": "{{count}} Artikel",
@@ -53,13 +78,22 @@
     "goToList": "Zur Einkaufsliste",
     "decreaseQty": "Menge verringern",
     "increaseQty": "Menge erhöhen",
-    "removeItem": "{{name}} entfernen"
+    "removeItem": "{{name}} entfernen",
+    "clearConfirm": "Ganze Einkaufsliste leeren?",
+    "compareHint": "Was deine Liste mit den aktuellen Angeboten in jedem Markt kostet.",
+    "failed": "Preise konnten nicht geladen werden. Bitte später erneut versuchen.",
+    "splitTitle": "Günstigster Einkauf diese Woche",
+    "splitHint_one": "in {{count}} Markt",
+    "splitHint_other": "verteilt auf {{count}} Märkte — jedes Produkt dort, wo es am günstigsten ist",
+    "noOfferFor": "Diese Woche in keinem Angebot: {{products}}",
+    "noneOnOffer": "Keines deiner Produkte ist diese Woche im Angebot. Schau nächste Woche wieder vorbei."
   },
   "search": {
     "resultsFor": "Suchergebnisse für",
     "from": "ab",
     "at": "bei",
-    "showAll": "Alle Ergebnisse anzeigen"
+    "showAll": "Alle Ergebnisse anzeigen",
+    "noOffer": "kein Angebot"
   },
   "history": {
     "title": "Preisverlauf",
@@ -70,23 +104,23 @@
     "noData": "Noch kein Preisverlauf vorhanden."
   },
   "footer": {
-    "disclaimer": "Preise von rewe.de und lidl.de. Angaben ohne Gewähr — Preise können im Laden abweichen.",
+    "disclaimer": "Preise aus den aktuellen Wochenangeboten von rewe.de, penny.de, aldi-nord.de und kaufland.de. Angaben ohne Gewähr — im Markt können Preise abweichen.",
     "impressum": "Impressum",
     "privacy": "Datenschutz"
   },
   "about": {
     "title": "Über Sparfuchs Berlin",
-    "intro": "Sparfuchs Berlin vergleicht reguläre Regalpreise von Berliner Supermärkten. Keine Werbeflyer — echte Preise, täglich aktualisiert.",
+    "intro": "Sparfuchs Berlin vergleicht die Wochenangebote der großen Supermärkte. Jedes Angebot wird einem Produkt nur zugeordnet, wenn es wirklich dieses Produkt ist, und nach Preis pro Kilo, Liter oder Stück verglichen.",
     "dataSources": "Datenquellen",
-    "dataSourcesText": "Die Preise stammen von rewe.de und lidl.de und werden täglich automatisch um 05:00 und 05:30 Uhr MEZ abgerufen.",
+    "dataSourcesText": "Die Angebote stammen von rewe.de, penny.de, aldi-nord.de und kaufland.de und werden täglich um 05:00 Uhr abgerufen. Abgelaufene Angebote verschwinden automatisch.",
     "disclaimer": "Haftungsausschluss",
-    "disclaimerText": "Alle Preisangaben ohne Gewähr. Die tatsächlichen Preise im Geschäft können abweichen. Dies ist kein offizieller Dienst von REWE oder Lidl.",
+    "disclaimerText": "Alle Preisangaben ohne Gewähr. Die tatsächlichen Preise im Geschäft können abweichen. Dies ist kein offizieller Dienst der genannten Händler.",
     "feedback": "Feedback",
     "feedbackText": "Fehler gefunden oder einen Vorschlag? Wir freuen uns über Rückmeldungen:",
     "openSource": "Open Source",
     "openSourceText": "Sparfuchs Berlin ist Open Source. Der vollständige Code ist verfügbar auf",
     "version": "Version",
-    "versionDate": "April 2026"
+    "versionDate": "November 2026"
   },
   "notFound": {
     "title": "404",

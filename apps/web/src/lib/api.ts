@@ -28,6 +28,8 @@ export interface StorePrice {
   unit_price_cents: number;
   unit_price_formatted: string;
   fetched_at: string;
+  /** Last day of the offer (YYYY-MM-DD) */
+  valid_until: string | null;
   is_cheapest: boolean;
   is_estimated: boolean;
   external_name?: string | null;

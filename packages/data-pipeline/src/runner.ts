@@ -1,308 +1,256 @@
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { closeBrowser } from "./browser.js";
-import { normalizePrice } from "./normalizer/index.js";
-import { fetchStoreProductImage } from "./sources/store-image-search.js";
+import { bestOffers, CATALOG } from "./catalog.js";
 import type { StoreSource, PipelineRunResult } from "./types.js";
 
+const toCents = (euros: number) => Math.round(euros * 100);
+
 /**
- * Run the pipeline for a single store:
- * 1. Load product matches from DB
- * 2. Fetch prices from source
- * 3. Normalize prices
- * 4. Upsert into prices table
- * 5. Update price_history on delta
- * 6. Log pipeline run
+ * Run one store:
+ * 1. Read every offer the store publishes this week
+ * 2. Pick the best-value matching offer per catalog product (catalog.ts)
+ * 3. Write it as the product's current price there; history on change
+ * 4. Remove the current price of products that are no longer on offer
+ *
+ * If the store cannot be read at all, nothing is written: existing prices
+ * keep their own valid_until and drop off the site when the offer ends, so a
+ * broken scraper can never leave stale prices showing as current.
  */
 export async function runPipelineForStore(source: StoreSource): Promise<PipelineRunResult> {
   const startTime = Date.now();
-  const errors: string[] = [];
-  let fetched = 0;
-  let updated = 0;
-  let failed = 0;
+  console.log(`[pipeline] Starting ${source.storeSlug}...`);
 
-  console.log(`[pipeline] Starting ${source.storeSlug} pipeline...`);
-
-  // 1. Get store ID
   const [store] = await db
     .select()
     .from(schema.stores)
     .where(eq(schema.stores.slug, source.storeSlug))
     .limit(1);
+  if (!store) throw new Error(`Store "${source.storeSlug}" not found in database`);
 
-  if (!store) {
-    throw new Error(`Store "${source.storeSlug}" not found in database`);
-  }
-
-  // 2. Log pipeline run as "running"
   const [run] = await db
     .insert(schema.pipelineRuns)
-    .values({
-      storeId: store.id,
-      status: "running",
-    })
+    .values({ storeId: store.id, status: "running" })
     .returning();
 
-  try {
-    // 3. Load product matches for this store
-    const matches = await db
-      .select({
-        matchId: schema.productMatches.id,
-        productId: schema.productMatches.productId,
-        externalProductId: schema.productMatches.externalProductId,
-        matchImageUrl: schema.productMatches.imageUrl,
-        productName: schema.products.nameDe,
-        defaultUnit: schema.products.defaultUnit,
+  const finish = async (result: Omit<PipelineRunResult, "storeSlug" | "durationMs">) => {
+    const durationMs = Date.now() - startTime;
+    await db
+      .update(schema.pipelineRuns)
+      .set({
+        status: result.status,
+        productsFetched: result.productsFetched,
+        productsUpdated: result.productsUpdated,
+        productsFailed: result.productsFailed,
+        errorMessage: result.errors.length > 0 ? result.errors.join("\n") : null,
+        completedAt: new Date(),
+        durationMs,
       })
-      .from(schema.productMatches)
-      .innerJoin(schema.products, eq(schema.products.id, schema.productMatches.productId))
-      .where(
-        and(
-          eq(schema.productMatches.storeId, store.id),
-          eq(schema.productMatches.isActive, true),
-          eq(schema.products.isActive, true),
-        ),
-      );
+      .where(eq(schema.pipelineRuns.id, run.id));
+    console.log(
+      `[pipeline] ${source.storeSlug}: ${result.status} — ${result.productsFetched} offers, ` +
+        `${result.productsUpdated} catalog products priced (${durationMs}ms)`,
+    );
+    return { ...result, storeSlug: source.storeSlug, durationMs };
+  };
 
-    console.log(`[pipeline] ${source.storeSlug}: ${matches.length} product matches to process`);
+  let offers;
+  try {
+    offers = await source.fetchOffers();
+    // An empty flyer means the page changed under us, not that nothing is on offer.
+    if (offers.length === 0) throw new Error("store returned 0 offers — scraper needs attention");
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[pipeline] ${source.storeSlug}: FAILED — ${msg}`);
+    return finish({ status: "failed", productsFetched: 0, productsUpdated: 0, productsFailed: 0, errors: [msg] });
+  }
 
-    // 4. Fetch + normalize + upsert one by one
-    for (const match of matches) {
-      try {
-        const raw = await source.fetchProduct(
-          match.externalProductId ?? "",
-          match.productName,
-        );
+  const best = bestOffers(offers);
+  const matches = await db
+    .select({
+      matchId: schema.productMatches.id,
+      productName: schema.products.nameDe,
+    })
+    .from(schema.productMatches)
+    .innerJoin(schema.products, eq(schema.products.id, schema.productMatches.productId))
+    .where(
+      and(
+        eq(schema.productMatches.storeId, store.id),
+        eq(schema.productMatches.isActive, true),
+        eq(schema.products.isActive, true),
+      ),
+    );
 
-        if (!raw) {
-          console.warn(`[pipeline] ${source.storeSlug}: no data for "${match.productName}"`);
-          failed++;
-          continue;
-        }
+  const errors: string[] = [];
+  const offMatchIds: string[] = [];
+  let updated = 0;
+  const now = new Date();
 
-        fetched++;
+  for (const match of matches) {
+    const hit = best.get(match.productName);
+    if (!hit) {
+      if (!CATALOG[match.productName]) errors.push(`no catalog rule for "${match.productName}"`);
+      offMatchIds.push(match.matchId);
+      continue;
+    }
+    const { offer, unitPrice } = hit;
+    const priceCents = toCents(offer.price);
+    const unitPriceCents = toCents(unitPrice);
 
-        // Resolve per-store image: use scraped image, or search for one if still missing
-        let storeImageUrl = raw.imageUrl ?? null;
-        if (!storeImageUrl && !match.matchImageUrl) {
-          // No image from offer scraper and none previously stored — try a product search
-          storeImageUrl = await fetchStoreProductImage(source.storeSlug, match.productName);
-        } else if (!storeImageUrl && match.matchImageUrl) {
-          // Keep existing stored image
-          storeImageUrl = match.matchImageUrl;
-        }
-
-        // Enrich product_match with external identifiers and per-store image
-        await db
+    try {
+      await db.transaction(async (tx) => {
+        await tx
           .update(schema.productMatches)
           .set({
-            externalProductId: raw.externalId || undefined,
-            externalName: raw.name || undefined,
-            ean: raw.ean || undefined,
-            externalUrl: raw.url || undefined,
-            imageUrl: storeImageUrl ?? undefined,
-            updatedAt: new Date(),
+            externalName: offer.name.slice(0, 300),
+            externalUrl: offer.url?.slice(0, 500) ?? null,
+            imageUrl: offer.imageUrl?.slice(0, 500) ?? null,
+            updatedAt: now,
           })
           .where(eq(schema.productMatches.id, match.matchId));
 
-        // Also write to product-level image if still null (first store to find an image wins)
-        if (storeImageUrl) {
-          await db
-            .update(schema.products)
-            .set({ imageUrl: storeImageUrl })
-            .where(and(eq(schema.products.id, match.productId), isNull(schema.products.imageUrl)));
-        }
-
-        // Normalize
-        const normalized = normalizePrice(raw, match.matchId, match.defaultUnit);
-
-        if (!normalized) {
-          console.warn(`[pipeline] ${source.storeSlug}: normalization failed for "${match.productName}"`);
-          failed++;
-          continue;
-        }
-
-        // Check existing price
-        const [existingPrice] = await db
+        const [existing] = await tx
           .select()
           .from(schema.prices)
           .where(eq(schema.prices.productMatchId, match.matchId))
           .limit(1);
 
-        const now = new Date();
+        const values = {
+          priceCents,
+          unitSize: offer.unitText.slice(0, 50),
+          unitType: CATALOG[match.productName].unit,
+          unitPriceCents,
+          isEstimated: false,
+          validUntil: offer.validUntil ?? null,
+          fetchedAt: now,
+        };
 
-        if (existingPrice) {
-          if (existingPrice.priceCents !== normalized.priceCents) {
-            // Price changed — update history
-            // Close current history record
-            await db
-              .update(schema.priceHistory)
-              .set({ validUntil: now })
-              .where(
-                and(
-                  eq(schema.priceHistory.productMatchId, match.matchId),
-                  eq(schema.priceHistory.priceCents, existingPrice.priceCents),
-                ),
-              );
-
-            // Open new history record
-            await db.insert(schema.priceHistory).values({
-              productMatchId: match.matchId,
-              priceCents: normalized.priceCents,
-              unitPriceCents: normalized.unitPriceCents,
-              validFrom: now,
-            });
-
-            // Update current price
-            await db
-              .update(schema.prices)
-              .set({
-                priceCents: normalized.priceCents,
-                unitSize: normalized.unitSize,
-                unitType: normalized.unitType,
-                unitPriceCents: normalized.unitPriceCents,
-                isEstimated: normalized.isEstimated,
-                fetchedAt: now,
-              })
-              .where(eq(schema.prices.id, existingPrice.id));
-
-            console.log(
-              `[pipeline] ${source.storeSlug}: "${match.productName}" price changed ${existingPrice.priceCents} → ${normalized.priceCents}`,
-            );
-          } else {
-            // Same price — refresh fetchedAt and re-sync isEstimated flag
-            await db
-              .update(schema.prices)
-              .set({ fetchedAt: now, isEstimated: normalized.isEstimated })
-              .where(eq(schema.prices.id, existingPrice.id));
-          }
+        if (!existing) {
+          await tx.insert(schema.prices).values({ productMatchId: match.matchId, ...values });
         } else {
-          // First time — insert price + initial history record
-          await db.insert(schema.prices).values({
-            productMatchId: match.matchId,
-            priceCents: normalized.priceCents,
-            unitSize: normalized.unitSize,
-            unitType: normalized.unitType,
-            unitPriceCents: normalized.unitPriceCents,
-            isEstimated: normalized.isEstimated,
-            fetchedAt: now,
-          });
+          await tx.update(schema.prices).set(values).where(eq(schema.prices.id, existing.id));
+        }
 
-          await db.insert(schema.priceHistory).values({
+        // History records each distinct offer once: close the open row when the
+        // price changes (or there was none), then open a new one.
+        if (!existing || existing.priceCents !== priceCents) {
+          await tx
+            .update(schema.priceHistory)
+            .set({ validUntil: now })
+            .where(
+              and(
+                eq(schema.priceHistory.productMatchId, match.matchId),
+                sql`${schema.priceHistory.validUntil} IS NULL`,
+              ),
+            );
+          await tx.insert(schema.priceHistory).values({
             productMatchId: match.matchId,
-            priceCents: normalized.priceCents,
-            unitPriceCents: normalized.unitPriceCents,
+            priceCents,
+            unitPriceCents,
             validFrom: now,
           });
         }
-
-        updated++;
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        errors.push(`${match.productName}: ${msg}`);
-        failed++;
-        console.error(`[pipeline] ${source.storeSlug}: error processing "${match.productName}": ${msg}`);
-      }
+      });
+      updated++;
+    } catch (error) {
+      errors.push(`${match.productName}: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    const durationMs = Date.now() - startTime;
-    const status = failed === 0 ? "success" : failed < matches.length ? "partial" : "failed";
-
-    // 5. Update pipeline run log
-    await db
-      .update(schema.pipelineRuns)
-      .set({
-        status,
-        productsFetched: fetched,
-        productsUpdated: updated,
-        productsFailed: failed,
-        errorMessage: errors.length > 0 ? errors.join("\n") : null,
-        completedAt: new Date(),
-        durationMs,
-      })
-      .where(eq(schema.pipelineRuns.id, run.id));
-
-    const result: PipelineRunResult = {
-      storeSlug: source.storeSlug,
-      status,
-      productsFetched: fetched,
-      productsUpdated: updated,
-      productsFailed: failed,
-      errors,
-      durationMs,
-    };
-
-    console.log(
-      `[pipeline] ${source.storeSlug}: ${status} — fetched=${fetched}, updated=${updated}, failed=${failed} (${durationMs}ms)`,
-    );
-
-    return result;
-  } catch (error) {
-    // Fatal error — mark run as failed
-    const durationMs = Date.now() - startTime;
-    const msg = error instanceof Error ? error.message : String(error);
-
-    await db
-      .update(schema.pipelineRuns)
-      .set({
-        status: "failed",
-        errorMessage: msg,
-        completedAt: new Date(),
-        durationMs,
-      })
-      .where(eq(schema.pipelineRuns.id, run.id));
-
-    console.error(`[pipeline] ${source.storeSlug}: FATAL — ${msg}`);
-
-    return {
-      storeSlug: source.storeSlug,
-      status: "failed",
-      productsFetched: fetched,
-      productsUpdated: updated,
-      productsFailed: failed,
-      errors: [msg],
-      durationMs,
-    };
   }
+
+  // Not on offer any more: drop the current price and close its history row.
+  if (offMatchIds.length > 0) {
+    await db.delete(schema.prices).where(inArray(schema.prices.productMatchId, offMatchIds));
+    await db
+      .update(schema.priceHistory)
+      .set({ validUntil: now })
+      .where(
+        and(
+          inArray(schema.priceHistory.productMatchId, offMatchIds),
+          sql`${schema.priceHistory.validUntil} IS NULL`,
+        ),
+      );
+    await db
+      .update(schema.productMatches)
+      .set({ imageUrl: null, externalName: null, externalUrl: null, updatedAt: now })
+      .where(inArray(schema.productMatches.id, offMatchIds));
+  }
+
+  return finish({
+    status: errors.length === 0 ? "success" : "failed",
+    productsFetched: offers.length,
+    productsUpdated: updated,
+    productsFailed: errors.length,
+    errors,
+  });
 }
 
-/** Run pipeline for all configured stores */
+/**
+ * Product photo = the photo of the best-value current offer, so the picture
+ * always shows something that is really for sale. Products with no current
+ * offer keep their last photo, which also came from a rule-matched offer.
+ */
+async function refreshProductImages(): Promise<void> {
+  await db.execute(sql`
+    UPDATE products p
+       SET image_url = best.image_url, updated_at = now()
+      FROM (
+        SELECT DISTINCT ON (pm.product_id) pm.product_id, pm.image_url
+          FROM product_matches pm
+          JOIN prices pr ON pr.product_match_id = pm.id
+          JOIN stores s ON s.id = pm.store_id AND s.is_active
+         WHERE pm.is_active AND pm.image_url IS NOT NULL
+           AND pr.valid_until >= (now() AT TIME ZONE 'Europe/Berlin')::date
+         ORDER BY pm.product_id, pr.unit_price_cents
+      ) best
+     WHERE p.id = best.product_id
+       AND p.image_url IS DISTINCT FROM best.image_url
+  `);
+}
+
+/** Run every store, then refresh product photos from the result. */
 export async function runFullPipeline(sources: StoreSource[]): Promise<PipelineRunResult[]> {
   console.log(`[pipeline] Starting full pipeline for ${sources.length} stores...`);
   const results: PipelineRunResult[] = [];
-
   for (const source of sources) {
-    const result = await runPipelineForStore(source);
-    results.push(result);
+    try {
+      results.push(await runPipelineForStore(source));
+    } catch (error) {
+      // A DB-level failure for one store must not stop the others.
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[pipeline] ${source.storeSlug}: FATAL — ${msg}`);
+      results.push({
+        storeSlug: source.storeSlug, status: "failed", productsFetched: 0,
+        productsUpdated: 0, productsFailed: 0, errors: [msg], durationMs: 0,
+      });
+    }
   }
-
+  await refreshProductImages();
   console.log("[pipeline] Full pipeline complete.");
   return results;
 }
 
 /**
- * Run the pipeline once, then release every resource that would keep the
- * process alive.
- *
- * Closing the browser is not optional: browser.ts keeps one shared Chromium
- * instance for the whole run, and leaving it open holds the event loop open
- * too. The scrape itself takes a couple of minutes, but the process then sat
- * idle until CI killed the job at its 30-minute timeout.
+ * Run the pipeline once and release everything that keeps the process alive
+ * (the shared browser holds the event loop open — see PR #9). Exits non-zero
+ * when any store failed, so CI shows a red run instead of a silent green one.
  */
 export async function runOnce(sources: StoreSource[]): Promise<void> {
+  let failed: boolean;
   try {
     const results = await runFullPipeline(sources);
-
     console.log("\n[pipeline] === Summary ===");
     for (const r of results) {
       console.log(
-        `  ${r.storeSlug}: ${r.status} — ${r.productsUpdated}/${r.productsFetched} updated, ${r.productsFailed} failed (${r.durationMs}ms)`,
+        `  ${r.storeSlug}: ${r.status} — ${r.productsFetched} offers, ${r.productsUpdated} products priced (${r.durationMs}ms)`,
       );
+      for (const e of r.errors) console.log(`    ! ${e}`);
     }
+    failed = results.some((r) => r.status === "failed");
   } finally {
     await closeBrowser().catch((err: unknown) =>
       console.warn(`[pipeline] Failed to close browser: ${String(err)}`),
     );
     await closeDb();
   }
+  if (failed) process.exitCode = 1;
 }

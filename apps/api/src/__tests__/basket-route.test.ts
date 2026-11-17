@@ -39,6 +39,7 @@ const SAMPLE_BASKET_RESULT = {
   ],
   totals: {
     rewe: {
+      store_name: "REWE",
       total_cents: 427,
       total_formatted: "4,27 €",
       items_available: 2,
@@ -46,6 +47,7 @@ const SAMPLE_BASKET_RESULT = {
       missing_products: [],
     },
     lidl: {
+      store_name: "Lidl",
       total_cents: 377,
       total_formatted: "3,77 €",
       items_available: 2,

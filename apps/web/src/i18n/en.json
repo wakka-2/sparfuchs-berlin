@@ -4,7 +4,7 @@
     "list": "List",
     "info": "Info",
     "search": "Search",
-    "searchPlaceholder": "Search products... e.g. milk, butter",
+    "searchPlaceholder": "Search products, e.g. butter",
     "allProducts": "All Products",
     "categories": "Categories",
     "all": "All",
@@ -16,15 +16,30 @@
     "error": "Something went wrong",
     "retry": "Try again",
     "home": "Home",
-    "back": "Back"
+    "back": "Back",
+    "mainNav": "Main navigation",
+    "skipToContent": "Skip to content"
   },
   "home": {
-    "title": "Compare Supermarket Prices",
-    "subtitle": "Find the cheapest prices in Berlin — REWE, Lidl and more.",
-    "noProducts": "No products available yet."
+    "title": "Shop cheaper this week",
+    "subtitle": "This week's offers from REWE, Penny, Aldi Nord and Kaufland — compared per kilo, litre or piece.",
+    "noProducts": "No products yet.",
+    "weekBadge": "Offers valid until {{date}}",
+    "weekBadgeNoDate": "Current weekly offers",
+    "statProducts": "Products on offer",
+    "statStores": "Stores compared",
+    "comparing": "Comparing:",
+    "topSavings": "Biggest savings",
+    "topSavingsHint": "per unit, cheapest vs. dearest store",
+    "onOfferCount_one": "{{count}} on offer",
+    "onOfferCount_other": "{{count}} on offer",
+    "notOnOffer": "Not on offer this week",
+    "notOnOfferHint": "No store has an offer for these right now. We never show old or estimated prices."
   },
   "category": {
-    "noProducts": "No products in this category."
+    "noProducts": "No products in this category.",
+    "summary": "{{onOffer}} of {{total}} products on offer this week",
+    "noOffers": "Nothing in this category is on offer this week."
   },
   "product": {
     "noPrices": "No prices available",
@@ -33,10 +48,20 @@
     "priceComparison": "Price Comparison",
     "viewInShop": "View in shop",
     "updated": "Updated",
-    "addToList": "+ Add to list",
-    "onList": "✓ On list",
+    "addToList": "Add to shopping list",
+    "onList": "On your list",
     "notAvailable": "Not available",
-    "notAvailableList": "Not available: {{products}}"
+    "notAvailableList": "Not available: {{products}}",
+    "addNamedToList": "Add {{name}} to list",
+    "removeFromList": "Remove {{name}} from list",
+    "validUntil": "valid until {{date}}",
+    "bestThisWeek": "Best price this week",
+    "savingVsDearest": "{{pct}}% cheaper than the dearest store",
+    "noOfferTitle": "Not on offer this week",
+    "noOfferHint": "As soon as a store has this product in its flyer, it shows up here.",
+    "compareHint": "Sorted by price per unit, so different pack sizes are comparable.",
+    "cheapest": "Cheapest",
+    "viewOffer": "View offer at {{store}}"
   },
   "basket": {
     "title": "Shopping List",
@@ -45,7 +70,7 @@
     "browseProducts": "Browse products",
     "clearList": "Clear list",
     "priceComparison": "Price Comparison",
-    "cheapest": "Cheapest",
+    "cheapest": "cheapest",
     "available": "{{available}} of {{total}} products available",
     "savings": "You save up to {{amount}}",
     "items": "{{count}} items",
@@ -53,13 +78,22 @@
     "goToList": "Go to shopping list",
     "decreaseQty": "Decrease quantity",
     "increaseQty": "Increase quantity",
-    "removeItem": "Remove {{name}}"
+    "removeItem": "Remove {{name}}",
+    "clearConfirm": "Clear your whole shopping list?",
+    "compareHint": "What your list costs at each store with this week's offers.",
+    "failed": "Prices could not be loaded. Please try again later.",
+    "splitTitle": "Cheapest shop this week",
+    "splitHint_one": "at {{count}} store",
+    "splitHint_other": "split across {{count}} stores — each item where it is cheapest",
+    "noOfferFor": "Not on offer anywhere this week: {{products}}",
+    "noneOnOffer": "None of your items is on offer this week. Check back next week."
   },
   "search": {
     "resultsFor": "Results for",
     "from": "from",
     "at": "at",
-    "showAll": "Show all results"
+    "showAll": "Show all results",
+    "noOffer": "no offer"
   },
   "history": {
     "title": "Price History",
@@ -70,23 +104,23 @@
     "noData": "No price history available yet."
   },
   "footer": {
-    "disclaimer": "Prices from rewe.de and lidl.de. No guarantee — prices may differ in-store.",
+    "disclaimer": "Prices from this week's offers on rewe.de, penny.de, aldi-nord.de and kaufland.de. No guarantee — in-store prices may differ.",
     "impressum": "Legal Notice",
     "privacy": "Privacy Policy"
   },
   "about": {
     "title": "About Sparfuchs Berlin",
-    "intro": "Sparfuchs Berlin compares regular shelf prices at Berlin supermarkets. No promotional flyers — real prices, updated daily.",
+    "intro": "Sparfuchs Berlin compares the weekly offers of the big supermarkets. An offer is only matched to a product when it really is that product, and compared per kilo, litre or piece.",
     "dataSources": "Data Sources",
-    "dataSourcesText": "Prices are fetched from rewe.de and lidl.de and updated automatically every day at 05:00 and 05:30 CET.",
+    "dataSourcesText": "Offers come from rewe.de, penny.de, aldi-nord.de and kaufland.de and are fetched daily at 05:00. Expired offers disappear automatically.",
     "disclaimer": "Disclaimer",
-    "disclaimerText": "All prices are provided without guarantee. Actual in-store prices may differ. This is not an official service of REWE or Lidl.",
+    "disclaimerText": "All prices without guarantee. Actual in-store prices may differ. This is not an official service of the stores named.",
     "feedback": "Feedback",
     "feedbackText": "Found a bug or have a suggestion? We'd love to hear from you:",
     "openSource": "Open Source",
     "openSourceText": "Sparfuchs Berlin is open source. The full code is available at",
     "version": "Version",
-    "versionDate": "April 2026"
+    "versionDate": "November 2026"
   },
   "notFound": {
     "title": "404",

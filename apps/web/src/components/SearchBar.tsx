@@ -2,15 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { searchProducts, type SearchResult } from "../lib/api";
+import { formatCents } from "../lib/format";
+import { Icon } from "./Icon";
 
-function formatCents(cents: number): string {
-  return (
-    (cents / 100).toLocaleString("de-DE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }) + " \u20AC"
-  );
-}
 
 export function SearchBar() {
   const [query, setQuery] = useState("");
@@ -82,7 +76,8 @@ export function SearchBar() {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} role="search" className="relative">
+        <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-subtle" />
         <input
           type="search"
           value={query}
@@ -93,10 +88,12 @@ export function SearchBar() {
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={t("common.searchPlaceholder")}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+          className="h-11 w-full rounded-xl border border-line bg-canvas pl-11 pr-3 text-base text-ink placeholder:text-ink-subtle transition focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-100"
           aria-label={t("common.search")}
           aria-expanded={open}
           aria-autocomplete="list"
+          aria-controls="search-suggestions"
+          enterKeyHint="search"
           role="combobox"
         />
       </form>
@@ -104,7 +101,8 @@ export function SearchBar() {
       {/* Autocomplete dropdown */}
       {open && results.length > 0 && (
         <ul
-          className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+          id="search-suggestions"
+          className="absolute left-0 right-0 z-50 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-line bg-white py-1 shadow-xl shadow-brand-900/10"
           role="listbox"
         >
           {results.map((result, index) => (
@@ -112,8 +110,8 @@ export function SearchBar() {
               key={result.id}
               role="option"
               aria-selected={index === activeIndex}
-              className={`cursor-pointer px-3 py-2 text-sm ${
-                index === activeIndex ? "bg-green-50 text-green-800" : "hover:bg-gray-50"
+              className={`flex min-h-11 cursor-pointer items-center px-4 text-base ${
+                index === activeIndex ? "bg-brand-50 text-brand-900" : "hover:bg-canvas"
               }`}
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => {
@@ -121,23 +119,23 @@ export function SearchBar() {
                 navigate(`/produkt/${result.id}`);
               }}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex w-full items-center justify-between gap-3">
                 <span className="font-medium">{result.name}</span>
                 {result.cheapest_price_cents != null && (
-                  <span className="text-xs text-green-700">
+                  <span className="tabular text-sm font-semibold text-brand-700">
                     {t("search.from")} {formatCents(result.cheapest_price_cents)}
                   </span>
                 )}
               </div>
             </li>
           ))}
-          <li className="border-t border-gray-100 px-3 py-2">
+          <li className="border-t border-line px-4 py-1">
             <button
               onClick={() => {
                 setOpen(false);
                 navigate(`/suche?q=${encodeURIComponent(query)}`);
               }}
-              className="w-full text-left text-xs text-green-700 hover:underline"
+              className="min-h-11 w-full cursor-pointer text-left text-sm font-semibold text-brand-700 hover:underline"
             >
               {t("search.showAll")}
             </button>

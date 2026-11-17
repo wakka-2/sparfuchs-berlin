@@ -7,6 +7,7 @@ import {
   integer,
   text,
   numeric,
+  date,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -147,6 +148,8 @@ export const prices = pgTable(
     unitPriceCents: integer("unit_price_cents").notNull(),
     currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
     isEstimated: boolean("is_estimated").notNull().default(false),
+    /** Last day the offer is valid (Berlin calendar day). Null = expired legacy row. */
+    validUntil: date("valid_until"),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
