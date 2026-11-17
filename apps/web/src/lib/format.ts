@@ -17,3 +17,12 @@ export function daysLeft(isoDate: string, now: Date = new Date()): number {
   const end = new Date(`${isoDate}T23:59:59`);
   return Math.max(0, Math.floor((end.getTime() - now.getTime()) / 86_400_000));
 }
+
+/**
+ * A store's base-price text in one style: "(1 kg = 11,58 €)", "1 kg = 5.56"
+ * and "1 Liter = 0.59" all become "1 kg = 11,58 €".
+ */
+export function formatBasePrice(text: string): string {
+  const clean = text.replace(/[()€]/g, "").replace(/(\d)\.(\d)/g, "$1,$2").replace(/\s+/g, " ").trim();
+  return clean ? `${clean} €` : "";
+}

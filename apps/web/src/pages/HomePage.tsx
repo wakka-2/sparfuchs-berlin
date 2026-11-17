@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { fetchProducts, fetchCategories, type Product } from "../lib/api";
 import { useApi } from "../hooks/useApi";
@@ -25,7 +26,13 @@ export function HomePage() {
 
   const stores = new Map<string, { name: string; color: string | null }>();
   for (const p of onOffer) for (const pr of p.prices) stores.set(pr.store_slug, { name: pr.store_name, color: pr.store_color });
-  const validUntil = onOffer.flatMap((p) => p.prices.map((pr) => pr.valid_until)).filter(Boolean).sort()[0];
+  // The flyer week's end = the most common offer end date (a few store
+  // promotions run longer; everyday prices have no end date of interest).
+  const endDates = new Map<string, number>();
+  for (const p of onOffer) for (const pr of p.prices) {
+    if (pr.is_offer && pr.valid_until) endDates.set(pr.valid_until, (endDates.get(pr.valid_until) ?? 0) + 1);
+  }
+  const validUntil = [...endDates].sort((a, b) => b[1] - a[1])[0]?.[0];
 
   return (
     <div className="space-y-10">
@@ -56,6 +63,20 @@ export function HomePage() {
           )}
         </div>
       </section>
+
+      <Link
+        to="/angebote"
+        className="group flex items-center gap-4 rounded-2xl border border-deal-100 bg-deal-50 p-4 transition hover:border-deal-500 sm:p-5"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-deal-500 text-ink" aria-hidden="true">
+          <Icon name="sparkles" className="h-6 w-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{t("home.browseTitle")}</span>
+          <span className="block text-sm text-ink-muted">{t("home.browseHint")}</span>
+        </span>
+        <Icon name="chevronRight" className="h-5 w-5 shrink-0 text-ink-subtle transition group-hover:translate-x-0.5" />
+      </Link>
 
       {/* Categories */}
       <section aria-labelledby="cat-heading" className="space-y-3">

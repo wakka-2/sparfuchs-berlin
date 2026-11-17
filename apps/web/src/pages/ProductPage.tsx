@@ -2,12 +2,12 @@ import { useParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { fetchProduct } from "../lib/api";
 import { useApi } from "../hooks/useApi";
-import { formatValidUntil } from "../lib/format";
 import { AddToListButton } from "../components/AddToListButton";
 import { PriceHistory } from "../components/PriceHistory";
 import { ErrorState } from "../components/ErrorState";
 import { StoreBadge } from "../components/StoreBadge";
 import { Icon } from "../components/Icon";
+import { PriceKind } from "../components/PriceKind";
 import { categoryIcon } from "../lib/categoryIcon";
 
 export function ProductPage() {
@@ -107,12 +107,7 @@ export function ProductPage() {
                   </div>
                   <div className="text-right">
                     <p className="tabular font-display text-2xl font-bold">{price.unit_price_formatted}</p>
-                    {price.valid_until && (
-                      <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-ink-subtle">
-                        <Icon name="calendar" className="h-3.5 w-3.5" />
-                        {t("product.validUntil", { date: formatValidUntil(price.valid_until, i18n.language) })}
-                      </p>
-                    )}
+                    <PriceKind price={price} lang={i18n.language} className="mt-0.5 justify-end" />
                   </div>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true">

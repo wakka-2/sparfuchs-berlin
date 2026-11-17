@@ -18,23 +18,26 @@
     "home": "Startseite",
     "back": "Zurück",
     "mainNav": "Hauptnavigation",
-    "skipToContent": "Zum Inhalt springen"
+    "skipToContent": "Zum Inhalt springen",
+    "offers": "Angebote"
   },
   "home": {
     "title": "Diese Woche günstiger einkaufen",
-    "subtitle": "Die Wochenangebote von REWE, Penny, Aldi Nord und Kaufland — verglichen pro Kilo, Liter oder Stück.",
+    "subtitle": "Wochenangebote von REWE, Penny, Aldi Nord und Kaufland plus Aldis Dauerpreise — verglichen pro Kilo, Liter oder Stück.",
     "noProducts": "Noch keine Produkte vorhanden.",
     "weekBadge": "Angebote gültig bis {{date}}",
     "weekBadgeNoDate": "Aktuelle Wochenangebote",
-    "statProducts": "Produkte im Angebot",
+    "statProducts": "Produkte mit Preis",
     "statStores": "Märkte verglichen",
     "comparing": "Im Vergleich:",
     "topSavings": "Größte Ersparnis",
     "topSavingsHint": "pro Einheit, günstigster vs. teuerster Markt",
-    "onOfferCount_one": "{{count}} im Angebot",
-    "onOfferCount_other": "{{count}} im Angebot",
-    "notOnOffer": "Diese Woche nicht im Angebot",
-    "notOnOfferHint": "Für diese Produkte hat gerade kein Markt ein Angebot. Wir zeigen keine alten oder geschätzten Preise."
+    "onOfferCount_one": "{{count}} mit Preis",
+    "onOfferCount_other": "{{count}} mit Preis",
+    "notOnOffer": "Diese Woche ohne Preis",
+    "notOnOfferHint": "Kein Markt hat diese Produkte gerade im Angebot, und Aldi Nord führt sie nicht online. Wir zeigen keine alten oder geschätzten Preise.",
+    "browseTitle": "Alle Angebote durchstöbern",
+    "browseHint": "Jedes Wochenangebot der vier Märkte und das ganze Aldi-Sortiment — durchsuchbar."
   },
   "category": {
     "noProducts": "Keine Produkte in dieser Kategorie.",
@@ -55,13 +58,15 @@
     "addNamedToList": "{{name}} zur Liste hinzufügen",
     "removeFromList": "{{name}} von der Liste entfernen",
     "validUntil": "gültig bis {{date}}",
-    "bestThisWeek": "Bester Preis diese Woche",
+    "bestThisWeek": "Bester Preis heute",
     "savingVsDearest": "{{pct}} % günstiger als im teuersten Markt",
     "noOfferTitle": "Diese Woche in keinem Angebot",
     "noOfferHint": "Sobald ein Markt dieses Produkt im Prospekt hat, erscheint es hier.",
     "compareHint": "Sortiert nach Preis pro Einheit — so sind unterschiedliche Packungsgrößen vergleichbar.",
     "cheapest": "Günstigster",
-    "viewOffer": "Angebot bei {{store}} ansehen"
+    "viewOffer": "Angebot bei {{store}} ansehen",
+    "regularPrice": "Dauerpreis",
+    "offerUntil": "Angebot bis {{date}}"
   },
   "basket": {
     "title": "Einkaufsliste",
@@ -104,15 +109,15 @@
     "noData": "Noch kein Preisverlauf vorhanden."
   },
   "footer": {
-    "disclaimer": "Preise aus den aktuellen Wochenangeboten von rewe.de, penny.de, aldi-nord.de und kaufland.de. Angaben ohne Gewähr — im Markt können Preise abweichen.",
+    "disclaimer": "Preise aus den aktuellen Wochenangeboten von rewe.de, penny.de, aldi-nord.de und kaufland.de sowie dem Aldi-Nord-Sortiment. Angaben ohne Gewähr — im Markt können Preise abweichen.",
     "impressum": "Impressum",
     "privacy": "Datenschutz"
   },
   "about": {
     "title": "Über Sparfuchs Berlin",
-    "intro": "Sparfuchs Berlin vergleicht die Wochenangebote der großen Supermärkte. Jedes Angebot wird einem Produkt nur zugeordnet, wenn es wirklich dieses Produkt ist, und nach Preis pro Kilo, Liter oder Stück verglichen.",
+    "intro": "Sparfuchs Berlin vergleicht die Wochenangebote der großen Supermärkte und die Dauerpreise von Aldi Nord. Jedes Angebot wird einem Produkt nur zugeordnet, wenn es wirklich dieses Produkt ist, und nach Preis pro Kilo, Liter oder Stück verglichen.",
     "dataSources": "Datenquellen",
-    "dataSourcesText": "Die Angebote stammen von rewe.de, penny.de, aldi-nord.de und kaufland.de und werden täglich um 05:00 Uhr abgerufen. Abgelaufene Angebote verschwinden automatisch.",
+    "dataSourcesText": "Die Angebote stammen von rewe.de, penny.de, aldi-nord.de und kaufland.de, Dauerpreise vom Online-Sortiment von aldi-nord.de. Alles wird täglich um 05:00 Uhr abgerufen; abgelaufene Angebote verschwinden automatisch. REWE, Penny und Kaufland veröffentlichen online nur ihre Wochenangebote, deshalb gibt es Dauerpreise bisher nur von Aldi Nord.",
     "disclaimer": "Haftungsausschluss",
     "disclaimerText": "Alle Preisangaben ohne Gewähr. Die tatsächlichen Preise im Geschäft können abweichen. Dies ist kein offizieller Dienst der genannten Händler.",
     "feedback": "Feedback",
@@ -126,5 +131,22 @@
     "title": "404",
     "message": "Seite nicht gefunden.",
     "goHome": "Zur Startseite"
+  },
+  "offers": {
+    "title": "Alle Angebote",
+    "subtitle": "Alles, was REWE, Penny, Aldi Nord und Kaufland diese Woche anbieten — plus Aldis komplettes Sortiment mit Dauerpreisen.",
+    "typeLabel": "Art der Preise",
+    "tabOffers": "Wochenangebote",
+    "tabRegular": "Aldi-Sortiment",
+    "searchLabel": "Angebote durchsuchen",
+    "searchPlaceholder": "Suchen, z. B. Eier, Kaffee, Käse",
+    "countOffers_one": "{{count}} Angebot",
+    "countOffers_other": "{{count}} Angebote",
+    "countRegular_one": "{{count}} Produkt",
+    "countRegular_other": "{{count}} Produkte",
+    "loadMore": "Mehr laden ({{count}} weitere)",
+    "noMatch": "Nichts gefunden für „{{q}}“.",
+    "empty": "Gerade keine Angebote.",
+    "openAt": "{{name}} bei {{store}} ansehen (öffnet neues Fenster)"
   }
 }
