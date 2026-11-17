@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useBasketStore } from "../stores/basket";
 import { Icon } from "./Icon";
+import { track } from "../lib/analytics";
 
 interface AddToListButtonProps {
   productId: string;
@@ -21,7 +22,10 @@ export function AddToListButton({ productId, productName, variant = "full" }: Ad
     e.preventDefault();
     e.stopPropagation();
     if (inList) removeItem(productId);
-    else addItem(productId, productName);
+    else {
+      addItem(productId, productName);
+      track("add_to_list", { item_name: productName });
+    }
   };
 
   const label = inList

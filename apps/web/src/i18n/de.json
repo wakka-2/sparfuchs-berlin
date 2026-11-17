@@ -190,5 +190,13 @@
     "ended": "Die Angebote dieser Woche sind vorbei.",
     "srEnds": "Die Angebote gelten bis {{date}} – neue Wochenangebote ab {{next}}",
     "srStarts": "Neue Wochenangebote ab {{next}}"
+  },
+  "consent": {
+    "title": "Darf Sparfuchs messen, wie die Seite genutzt wird?",
+    "text": "Mit Ihrer Zustimmung nutzen wir Google Analytics, um zu sehen, welche Angebote gefragt sind. Ohne Zustimmung wird nichts geladen.",
+    "more": "Mehr in der Datenschutzerklärung",
+    "decline": "Ablehnen",
+    "accept": "Akzeptieren",
+    "settings": "Cookie-Einstellungen"
   }
 }

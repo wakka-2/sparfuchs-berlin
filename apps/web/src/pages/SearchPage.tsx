@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { useSearchParams, Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { searchProducts } from "../lib/api";
+import { track } from "../lib/analytics";
 import { useApi } from "../hooks/useApi";
 import { formatCents } from "../lib/format";
 import { ErrorState } from "../components/ErrorState";
@@ -11,6 +13,9 @@ export function SearchPage() {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
+  useEffect(() => {
+    if (query.length >= 2) track("search", { search_term: query, source: "header" });
+  }, [query]);
   const { data: results, loading, error } = useApi(
     () => (query.length >= 2 ? searchProducts(query, 20) : Promise.resolve([])),
     [query],

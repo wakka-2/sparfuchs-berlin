@@ -7,6 +7,8 @@ import { ProductPage } from "./pages/ProductPage";
 import { SearchPage } from "./pages/SearchPage";
 import { OffersPage } from "./pages/OffersPage";
 import { ReviewPage } from "./pages/ReviewPage";
+import { ConsentBanner } from "./components/ConsentBanner";
+import { analyticsConfigured, openConsentSettings, trackPageView } from "./lib/analytics";
 import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { AboutPage } from "./pages/AboutPage";
 import { ImpressumPage } from "./pages/ImpressumPage";
@@ -110,6 +112,10 @@ function BottomNav() {
 /** On route change: back to top and move focus to the page for screen readers. */
 function useRouteFocus() {
   const { pathname } = useLocation();
+  // Single-page app: report each route change as a page view (consent-gated).
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
   useEffect(() => {
@@ -175,11 +181,17 @@ export function App() {
             <Link to="/ueber-uns" className="hover:text-brand-700">{t("common.info")}</Link>
             <Link to="/impressum" className="hover:text-brand-700">{t("footer.impressum")}</Link>
             <Link to="/datenschutz" className="hover:text-brand-700">{t("footer.privacy")}</Link>
+            {analyticsConfigured() && (
+              <button type="button" onClick={openConsentSettings} className="cursor-pointer hover:text-brand-700">
+                {t("consent.settings")}
+              </button>
+            )}
           </div>
         </div>
       </footer>
 
       <BottomNav />
+      <ConsentBanner />
     </div>
   );
 }
