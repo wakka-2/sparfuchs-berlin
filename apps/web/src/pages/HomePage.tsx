@@ -2,10 +2,11 @@ import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { fetchProducts, fetchCategories, type Product } from "../lib/api";
 import { useApi } from "../hooks/useApi";
-import { formatValidUntil } from "../lib/format";
 import { ProductCard } from "../components/ProductCard";
 import { FeaturedCarousel } from "../components/FeaturedCarousel";
+import { OfferCountdown } from "../components/OfferCountdown";
 import { pickFeatured } from "../lib/featured";
+import { lastSaturday } from "../lib/week";
 import { CategoryNav } from "../components/CategoryNav";
 import { StoreBadge } from "../components/StoreBadge";
 import { ProductGridSkeleton, CategoryNavSkeleton } from "../components/Skeleton";
@@ -14,7 +15,7 @@ import { Icon } from "../components/Icon";
 import { categoryIcon } from "../lib/categoryIcon";
 
 export function HomePage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const categories = useApi(() => fetchCategories(), []);
   const products = useApi(() => fetchProducts({ limit: 100 }), []);
 
@@ -45,16 +46,12 @@ export function HomePage() {
         <FeaturedCarousel offers={featured} />
       )}
 
+      {products.data && <OfferCountdown validUntil={validUntil ?? lastSaturday()} />}
+
       {/* Intro: what this is, for which week, how much is covered */}
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="max-w-2xl">
-          <p className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-800">
-            <Icon name="calendar" className="h-4 w-4" />
-            {validUntil
-              ? t("home.weekBadge", { date: formatValidUntil(validUntil, i18n.language) })
-              : t("home.weekBadgeNoDate")}
-          </p>
-          <h1 className="mt-2 text-[1.75rem] font-bold leading-tight sm:text-4xl">{t("home.title")}</h1>
+          <h1 className="text-[1.75rem] font-bold leading-tight sm:text-4xl">{t("home.title")}</h1>
           <p className="mt-1 text-ink-muted">{t("home.subtitle")}</p>
         </div>
         {products.data && (
