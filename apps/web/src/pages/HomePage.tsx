@@ -4,6 +4,8 @@ import { fetchProducts, fetchCategories, type Product } from "../lib/api";
 import { useApi } from "../hooks/useApi";
 import { formatValidUntil } from "../lib/format";
 import { ProductCard } from "../components/ProductCard";
+import { FeaturedCarousel } from "../components/FeaturedCarousel";
+import { pickFeatured } from "../lib/featured";
 import { CategoryNav } from "../components/CategoryNav";
 import { StoreBadge } from "../components/StoreBadge";
 import { ProductGridSkeleton, CategoryNavSkeleton } from "../components/Skeleton";
@@ -19,6 +21,7 @@ export function HomePage() {
   const all = products.data?.products ?? [];
   const onOffer = all.filter((p) => p.prices.length > 0);
   const notOnOffer = all.filter((p) => p.prices.length === 0);
+  const featured = pickFeatured(all);
   const topSavings = [...onOffer]
     .filter((p) => (p.savings?.percentage ?? 0) >= 5)
     .sort((a, b) => (b.savings?.percentage ?? 0) - (a.savings?.percentage ?? 0))
@@ -36,33 +39,37 @@ export function HomePage() {
 
   return (
     <div className="space-y-10">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-brand-800 px-5 py-6 text-white sm:px-10 sm:py-9">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brand-600/50" />
-        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 right-24 hidden h-48 w-48 rounded-full bg-deal-500/25 sm:block" />
-        <div className="relative max-w-2xl">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-brand-100">
-            <Icon name="sparkles" className="h-4 w-4" />
+      {products.loading ? (
+        <div className="h-[26rem] animate-pulse rounded-3xl bg-line/60 sm:h-80" aria-hidden="true" />
+      ) : (
+        <FeaturedCarousel offers={featured} />
+      )}
+
+      {/* Intro: what this is, for which week, how much is covered */}
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="max-w-2xl">
+          <p className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-800">
+            <Icon name="calendar" className="h-4 w-4" />
             {validUntil
               ? t("home.weekBadge", { date: formatValidUntil(validUntil, i18n.language) })
               : t("home.weekBadgeNoDate")}
           </p>
-          <h1 className="mt-3 text-[1.75rem] font-bold leading-tight sm:text-5xl">{t("home.title")}</h1>
-          <p className="mt-2 max-w-xl text-base text-brand-100 sm:text-lg">{t("home.subtitle")}</p>
-          {products.data && (
-            <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3">
-              <div>
-                <dt className="text-sm text-brand-200">{t("home.statProducts")}</dt>
-                <dd className="tabular font-display text-2xl font-bold">{onOffer.length} / {all.length}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-brand-200">{t("home.statStores")}</dt>
-                <dd className="tabular font-display text-2xl font-bold">{stores.size}</dd>
-              </div>
-            </dl>
-          )}
+          <h1 className="mt-2 text-[1.75rem] font-bold leading-tight sm:text-4xl">{t("home.title")}</h1>
+          <p className="mt-1 text-ink-muted">{t("home.subtitle")}</p>
         </div>
-      </section>
+        {products.data && (
+          <dl className="flex gap-6">
+            <div>
+              <dt className="text-sm text-ink-subtle">{t("home.statProducts")}</dt>
+              <dd className="tabular font-display text-2xl font-bold">{onOffer.length} / {all.length}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-ink-subtle">{t("home.statStores")}</dt>
+              <dd className="tabular font-display text-2xl font-bold">{stores.size}</dd>
+            </div>
+          </dl>
+        )}
+      </header>
 
       <Link
         to="/angebote"

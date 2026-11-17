@@ -164,5 +164,18 @@
     "approve": "Yes",
     "reject": "No",
     "open": "View in shop"
+  },
+  "featured": {
+    "title": "Top deals this week",
+    "carousel": "carousel",
+    "slide": "deal",
+    "slideOf": "{{n}} of {{count}}",
+    "badge": "{{pct}} % cheaper per {{unit}}",
+    "at": "at {{store}}",
+    "instead": "instead of {{price}} at {{store}}",
+    "cta": "Compare prices",
+    "pause": "Pause automatic rotation",
+    "play": "Start automatic rotation",
+    "goTo": "Deal {{n}}: {{name}}"
   }
 }
