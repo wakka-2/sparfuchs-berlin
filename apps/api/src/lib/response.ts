@@ -38,7 +38,7 @@ export function success<T>(c: Context, data: T, pagination?: Pagination) {
 }
 
 /** Build an error response matching api-spec.md envelope */
-export function error(c: Context, status: 400 | 404 | 429 | 500 | 503, code: string, message: string) {
+export function error(c: Context, status: 400 | 401 | 404 | 429 | 500 | 503, code: string, message: string) {
   return c.json(
     {
       success: false,

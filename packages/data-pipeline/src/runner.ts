@@ -1,7 +1,8 @@
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { closeBrowser } from "./browser.js";
-import { bestOffers, CATALOG } from "./catalog.js";
+import { rankOffers, priceProblem, CATALOG } from "./catalog.js";
+import { suggestMatchReviews, loadDecisions, queueReview, priceKey } from "./review.js";
 import type { Offer, StoreSource, PipelineRunResult } from "./types.js";
 import { berlinDate, saturdayOf } from "./http.js";
 
@@ -18,7 +19,11 @@ const toCents = (euros: number) => Math.round(euros * 100);
  * keep their own valid_until and drop off the site when the offer ends, so a
  * broken scraper can never leave stale prices showing as current.
  */
-export async function runPipelineForStore(source: StoreSource): Promise<PipelineRunResult> {
+export async function runPipelineForStore(
+  source: StoreSource,
+  /** Receives the store's offers, for the AI review step after all stores ran */
+  collect?: Map<string, Offer[]>,
+): Promise<PipelineRunResult> {
   const startTime = Date.now();
   console.log(`[pipeline] Starting ${source.storeSlug}...`);
 
@@ -73,14 +78,20 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
     console.error(`[pipeline] ${source.storeSlug}: store_offers not written — ${String(error)}`);
   }
 
-  const best = bestOffers(offers);
+  collect?.set(source.storeSlug, offers);
+
+  const { decisions, approvedPrices } = await loadDecisions();
+  const ranked = rankOffers(offers, CATALOG, decisions);
   const matches = await db
     .select({
       matchId: schema.productMatches.id,
+      productId: schema.products.id,
       productName: schema.products.nameDe,
+      previousUnitCents: schema.prices.unitPriceCents,
     })
     .from(schema.productMatches)
     .innerJoin(schema.products, eq(schema.products.id, schema.productMatches.productId))
+    .leftJoin(schema.prices, eq(schema.prices.productMatchId, schema.productMatches.id))
     .where(
       and(
         eq(schema.productMatches.storeId, store.id),
@@ -92,10 +103,34 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
   const errors: string[] = [];
   const offMatchIds: string[] = [];
   let updated = 0;
+  let held = 0;
   const now = new Date();
 
   for (const match of matches) {
-    const hit = best.get(match.productName);
+    // Cheapest believable offer: an implausible unit price is held for review
+    // (unless a person approved that exact price) and the next one is tried.
+    let hit;
+    for (const cand of ranked.get(match.productName) ?? []) {
+      const problem = priceProblem(
+        match.productName,
+        cand.unitPrice,
+        match.previousUnitCents == null ? null : match.previousUnitCents / 100,
+      );
+      if (!problem || approvedPrices.has(priceKey(cand.offer.name, match.productId, toCents(cand.offer.price)))) {
+        hit = cand;
+        break;
+      }
+      held++;
+      await queueReview({
+        key: priceKey(cand.offer.name, match.productId, toCents(cand.offer.price)),
+        kind: "price",
+        storeId: store.id,
+        productId: match.productId,
+        offer: cand.offer,
+        unitPriceCents: toCents(cand.unitPrice),
+        reason: problem,
+      });
+    }
     if (!hit) {
       if (!CATALOG[match.productName]) errors.push(`no catalog rule for "${match.productName}"`);
       offMatchIds.push(match.matchId);
@@ -184,6 +219,8 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
       .where(inArray(schema.productMatches.id, offMatchIds));
   }
 
+  if (held > 0) console.log(`[pipeline] ${source.storeSlug}: ${held} implausible price(s) held for review`);
+
   return finish({
     status: errors.length === 0 ? "success" : "failed",
     productsFetched: offers.length,
@@ -243,9 +280,10 @@ async function refreshProductImages(): Promise<void> {
 export async function runFullPipeline(sources: StoreSource[]): Promise<PipelineRunResult[]> {
   console.log(`[pipeline] Starting full pipeline for ${sources.length} stores...`);
   const results: PipelineRunResult[] = [];
+  const offersByStore = new Map<string, Offer[]>();
   for (const source of sources) {
     try {
-      results.push(await runPipelineForStore(source));
+      results.push(await runPipelineForStore(source, offersByStore));
     } catch (error) {
       // A DB-level failure for one store must not stop the others.
       const msg = error instanceof Error ? error.message : String(error);
@@ -257,6 +295,12 @@ export async function runFullPipeline(sources: StoreSource[]): Promise<PipelineR
     }
   }
   await refreshProductImages();
+  try {
+    await suggestMatchReviews(offersByStore);
+  } catch (error) {
+    // The AI step only adds review items; it must never fail the price run.
+    console.error(`[review] AI suggestions skipped — ${error instanceof Error ? error.message : String(error)}`);
+  }
   console.log("[pipeline] Full pipeline complete.");
   return results;
 }

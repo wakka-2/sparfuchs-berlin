@@ -13,11 +13,13 @@
     "start:cron": "tsx src/scheduler.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0",
     "@sparfuchs/api": "workspace:*",
     "@sparfuchs/shared": "workspace:*",
     "drizzle-orm": "^0.40.0",
     "node-cron": "^3.0.3",
-    "postgres": "^3.4.0"
+    "postgres": "^3.4.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@playwright/browser-chromium": "^1.65.1",
