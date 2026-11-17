@@ -148,5 +148,21 @@
     "noMatch": "Nothing found for “{{q}}”.",
     "empty": "No offers right now.",
     "openAt": "View {{name}} at {{store}} (opens new window)"
+  },
+  "review": {
+    "title": "Review",
+    "subtitle": "Matches the AI doubts and prices the pipeline held back. Decisions apply from the next daily run.",
+    "signInHint": "For the site owner only.",
+    "tokenLabel": "Review key",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "empty": "Nothing to review.",
+    "count_one": "{{count}} open",
+    "count_other": "{{count}} open",
+    "questionMatch": "Is this “{{product}}”?",
+    "questionPrice": "Is this price right for “{{product}}”?",
+    "approve": "Yes",
+    "reject": "No",
+    "open": "View in shop"
   }
 }

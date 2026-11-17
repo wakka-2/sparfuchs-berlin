@@ -189,3 +189,33 @@ export async function fetchOffers(params: { type: OfferType; store?: string; q?:
   }>(`/offers?${sp}`);
   return { ...res.data, pagination: res.meta.pagination };
 }
+
+// ── Review queue (site owner only, token-protected) ──
+
+export interface ReviewItem {
+  id: string;
+  kind: "match" | "price";
+  status: "pending" | "approved" | "rejected";
+  store_name: string;
+  store_color: string | null;
+  product_name: string;
+  offer_name: string;
+  unit_text: string;
+  price_formatted: string;
+  unit_price_cents: number | null;
+  image_url: string | null;
+  url: string | null;
+  reason: string;
+  created_at: string;
+}
+
+const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+export async function fetchReviews(token: string) {
+  const res = await apiFetch<{ success: true; data: { reviews: ReviewItem[] } }>("/admin/reviews", { headers: bearer(token) });
+  return res.data.reviews;
+}
+
+export async function decideReview(token: string, id: string, status: "approved" | "rejected") {
+  await apiFetch(`/admin/reviews/${id}`, { method: "POST", headers: bearer(token), body: JSON.stringify({ status }) });
+}

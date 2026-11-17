@@ -6,6 +6,7 @@ import { CategoryPage } from "./pages/CategoryPage";
 import { ProductPage } from "./pages/ProductPage";
 import { SearchPage } from "./pages/SearchPage";
 import { OffersPage } from "./pages/OffersPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { AboutPage } from "./pages/AboutPage";
 import { ImpressumPage } from "./pages/ImpressumPage";
@@ -146,6 +147,7 @@ export function App() {
             <Route path="/produkt/:id" element={<ProductPage />} />
             <Route path="/suche" element={<SearchPage />} />
             <Route path="/angebote" element={<OffersPage />} />
+            <Route path="/pruefen" element={<ReviewPage />} />
             <Route path="/liste" element={<ShoppingListPage />} />
             <Route path="/ueber-uns" element={<AboutPage />} />
             <Route path="/impressum" element={<ImpressumPage />} />

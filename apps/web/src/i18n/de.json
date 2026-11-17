@@ -148,5 +148,21 @@
     "noMatch": "Nichts gefunden für „{{q}}“.",
     "empty": "Gerade keine Angebote.",
     "openAt": "{{name}} bei {{store}} ansehen (öffnet neues Fenster)"
+  },
+  "review": {
+    "title": "Prüfen",
+    "subtitle": "Zuordnungen, die die KI anzweifelt, und Preise, die die Pipeline zurückgehalten hat. Entscheidungen gelten ab dem nächsten täglichen Lauf.",
+    "signInHint": "Nur für den Betreiber der Seite.",
+    "tokenLabel": "Prüf-Schlüssel",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "empty": "Nichts zu prüfen.",
+    "count_one": "{{count}} offen",
+    "count_other": "{{count}} offen",
+    "questionMatch": "Ist das „{{product}}“?",
+    "questionPrice": "Stimmt dieser Preis für „{{product}}“?",
+    "approve": "Ja",
+    "reject": "Nein",
+    "open": "Im Shop ansehen"
   }
 }
