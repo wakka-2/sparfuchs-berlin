@@ -93,6 +93,7 @@ export async function calculateBasket(items: BasketItem[]) {
   const totals: Record<
     string,
     {
+      store_name: string;
       total_cents: number;
       total_formatted: string;
       items_available: number;
@@ -119,6 +120,7 @@ export async function calculateBasket(items: BasketItem[]) {
     }
 
     totals[store.slug] = {
+      store_name: store.name,
       total_cents: total,
       total_formatted: formatCents(total),
       items_available: available,

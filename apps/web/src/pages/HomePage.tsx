@@ -1,169 +1,147 @@
 import { useTranslation } from "react-i18next";
-import { fetchProducts, fetchCategories } from "../lib/api";
+import { fetchProducts, fetchCategories, type Product } from "../lib/api";
 import { useApi } from "../hooks/useApi";
+import { formatValidUntil } from "../lib/format";
 import { ProductCard } from "../components/ProductCard";
 import { CategoryNav } from "../components/CategoryNav";
+import { StoreBadge } from "../components/StoreBadge";
 import { ProductGridSkeleton, CategoryNavSkeleton } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
+import { Icon } from "../components/Icon";
+import { categoryIcon } from "../lib/categoryIcon";
 
 export function HomePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const categories = useApi(() => fetchCategories(), []);
+  const products = useApi(() => fetchProducts({ limit: 100 }), []);
 
-  const {
-    data: categoriesData,
-    loading: catLoading,
-    error: catError,
-  } = useApi(() => fetchCategories(), []);
+  const all = products.data?.products ?? [];
+  const onOffer = all.filter((p) => p.prices.length > 0);
+  const notOnOffer = all.filter((p) => p.prices.length === 0);
+  const topSavings = [...onOffer]
+    .filter((p) => (p.savings?.percentage ?? 0) >= 5)
+    .sort((a, b) => (b.savings?.percentage ?? 0) - (a.savings?.percentage ?? 0))
+    .slice(0, 4);
 
-  const {
-    data: productsData,
-    loading: prodLoading,
-    error: prodError,
-  } = useApi(() => fetchProducts({ limit: 50 }), []);
+  const stores = new Map<string, { name: string; color: string | null }>();
+  for (const p of onOffer) for (const pr of p.prices) stores.set(pr.store_slug, { name: pr.store_name, color: pr.store_color });
+  const validUntil = onOffer.flatMap((p) => p.prices.map((pr) => pr.valid_until)).filter(Boolean).sort()[0];
 
   return (
-    <div className="space-y-6">
-      {/* Hero banner */}
-      <section className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-green-700 to-green-500 px-6 py-5 text-white shadow-md">
-        <div>
-          <h1 className="text-lg font-bold sm:text-xl">{t("home.title")}</h1>
-          <p className="mt-0.5 text-sm text-green-100">{t("home.subtitle")}</p>
+    <div className="space-y-10">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-3xl bg-brand-800 px-5 py-6 text-white sm:px-10 sm:py-9">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brand-600/50" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 right-24 hidden h-48 w-48 rounded-full bg-deal-500/25 sm:block" />
+        <div className="relative max-w-2xl">
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold text-brand-100">
+            <Icon name="sparkles" className="h-4 w-4" />
+            {validUntil
+              ? t("home.weekBadge", { date: formatValidUntil(validUntil, i18n.language) })
+              : t("home.weekBadgeNoDate")}
+          </p>
+          <h1 className="mt-3 text-[1.75rem] font-bold leading-tight sm:text-5xl">{t("home.title")}</h1>
+          <p className="mt-2 max-w-xl text-base text-brand-100 sm:text-lg">{t("home.subtitle")}</p>
+          {products.data && (
+            <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3">
+              <div>
+                <dt className="text-sm text-brand-200">{t("home.statProducts")}</dt>
+                <dd className="tabular font-display text-2xl font-bold">{onOffer.length} / {all.length}</dd>
+              </div>
+              <div>
+                <dt className="text-sm text-brand-200">{t("home.statStores")}</dt>
+                <dd className="tabular font-display text-2xl font-bold">{stores.size}</dd>
+              </div>
+            </dl>
+          )}
         </div>
-        <span className="hidden text-5xl sm:block" aria-hidden="true">🦊</span>
       </section>
 
-      {/* Categories nav */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          {t("common.categories")}
-        </h2>
-        {catLoading ? (
-          <CategoryNavSkeleton />
-        ) : catError ? (
-          <ErrorState message={catError} />
-        ) : (
-          <CategoryNav categories={categoriesData ?? []} />
+      {/* Categories */}
+      <section aria-labelledby="cat-heading" className="space-y-3">
+        <h2 id="cat-heading" className="sr-only">{t("common.categories")}</h2>
+        {categories.loading ? <CategoryNavSkeleton /> : categories.error ? <ErrorState message={categories.error} /> : (
+          <CategoryNav categories={categories.data ?? []} />
+        )}
+        {stores.size > 0 && (
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="text-ink-subtle">{t("home.comparing")}</span>
+            {[...stores.values()].map((s) => <StoreBadge key={s.name} name={s.name} color={s.color} />)}
+          </p>
         )}
       </section>
 
-      {/* Products grouped by category */}
-      {prodLoading ? (
-        <ProductGridSkeleton count={6} />
-      ) : prodError ? (
-        <ErrorState message={prodError} />
+      {products.loading ? (
+        <ProductGridSkeleton count={8} />
+      ) : products.error ? (
+        <ErrorState message={products.error} />
+      ) : all.length === 0 ? (
+        <p className="py-12 text-center text-ink-muted">{t("home.noProducts")}</p>
       ) : (
-        (() => {
-          const allProducts = productsData?.products ?? [];
-          const withPrices = allProducts.filter((p) => p.prices.length > 0);
+        <>
+          {topSavings.length > 0 && (
+            <section aria-labelledby="top-heading">
+              <SectionHeading id="top-heading" icon="trophy" title={t("home.topSavings")} hint={t("home.topSavingsHint")} />
+              <Grid products={topSavings} />
+            </section>
+          )}
 
-          if (allProducts.length === 0) {
-            return <p className="text-center text-gray-500">{t("home.noProducts")}</p>;
-          }
+          {groupByCategory(onOffer, categories.data ?? []).map((group) => (
+            <section key={group.slug} aria-labelledby={`cat-${group.slug}`}>
+              <SectionHeading
+                id={`cat-${group.slug}`}
+                icon={categoryIcon(group.slug)}
+                title={group.name}
+                hint={t("home.onOfferCount", { count: group.products.length })}
+              />
+              <Grid products={group.products} />
+            </section>
+          ))}
 
-          // Group products by category slug, preserving category metadata
-          const grouped = new Map<string, {
-            name: string;
-            icon: string | null;
-            sortOrder: number;
-            products: typeof allProducts;
-          }>();
-
-          for (const product of allProducts) {
-            const slug = product.category?.slug;
-            if (!slug) continue;
-            if (!grouped.has(slug)) {
-              const cat = categoriesData?.find((c) => c.slug === slug);
-              grouped.set(slug, {
-                name: product.category?.name ?? slug,
-                icon: cat?.icon ?? null,
-                sortOrder: cat?.sort_order ?? 99,
-                products: [],
-              });
-            }
-            grouped.get(slug)!.products.push(product);
-          }
-
-          const sections = [...grouped.values()].sort((a, b) => a.sortOrder - b.sortOrder);
-
-          // Collect unique store names from priced products
-          const storeNames = [
-            ...new Set(withPrices.flatMap((p) => p.prices.map((pr) => pr.store_name))),
-          ];
-
-          return (
-            <div className="space-y-2">
-              {/* Summary bar */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-gray-50 px-4 py-3">
-                <span className="text-sm font-bold text-gray-800">
-                  {withPrices.length} von {allProducts.length} Produkten mit Preisen
-                </span>
-                {storeNames.length > 0 && (
-                  <>
-                    <span className="text-gray-300 select-none">·</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {storeNames.map((name) => {
-                        const pr = withPrices.flatMap((p) => p.prices).find((p) => p.store_name === name);
-                        return (
-                          <span
-                            key={name}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-xs font-medium text-gray-700 shadow-sm"
-                          >
-                            <span
-                              className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: pr?.store_color ?? "#888" }}
-                              aria-hidden="true"
-                            />
-                            {name}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+          {notOnOffer.length > 0 && (
+            <section aria-labelledby="none-heading" className="rounded-2xl border border-dashed border-line bg-surface/60 p-5">
+              <h2 id="none-heading" className="text-lg font-semibold">{t("home.notOnOffer")}</h2>
+              <p className="mt-1 text-sm text-ink-muted">{t("home.notOnOfferHint")}</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {notOnOffer.map((p) => <ProductCard key={p.id} product={p} />)}
               </div>
-
-              {/* Category sections */}
-              <div className="space-y-8 pt-2">
-                {sections.map((section) => (
-                  <section key={section.name}>
-                    {/* Section header */}
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex items-center gap-2.5">
-                        {section.icon && (
-                          <span
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow ring-1 ring-gray-100"
-                            aria-hidden="true"
-                          >
-                            {section.icon}
-                          </span>
-                        )}
-                        <h2 className="text-base font-extrabold tracking-tight text-gray-900 sm:text-lg">
-                          {section.name}
-                        </h2>
-                      </div>
-                      <div className="h-px flex-1 bg-gray-200" />
-                      <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
-                        {section.products.length}{" "}
-                        {section.products.length === 1 ? "Angebot" : "Angebote"}
-                      </span>
-                    </div>
-
-                    {/* Product grid */}
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {section.products.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                      ))}
-                    </div>
-
-                    {/* Section bottom rule */}
-                    <div className="mt-8 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-                  </section>
-                ))}
-              </div>
-            </div>
-          );
-        })()
+            </section>
+          )}
+        </>
       )}
     </div>
   );
+}
+
+function SectionHeading({ id, icon, title, hint }: { id: string; icon: Parameters<typeof Icon>[0]["name"]; title: string; hint?: string }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+      <h2 id={id} className="flex items-center gap-3 text-xl font-semibold sm:text-2xl">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-800" aria-hidden="true">
+          <Icon name={icon} className="h-5 w-5" />
+        </span>
+        {title}
+      </h2>
+      {hint && <span className="text-sm text-ink-subtle">{hint}</span>}
+    </div>
+  );
+}
+
+function Grid({ products }: { products: Product[] }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {products.map((p) => <ProductCard key={p.id} product={p} />)}
+    </div>
+  );
+}
+
+function groupByCategory(products: Product[], categories: Array<{ slug: string; sort_order: number }>) {
+  const order = new Map(categories.map((c) => [c.slug, c.sort_order]));
+  const groups = new Map<string, { slug: string; name: string; products: Product[] }>();
+  for (const p of products) {
+    const g = groups.get(p.category.slug) ?? { slug: p.category.slug, name: p.category.name, products: [] };
+    g.products.push(p);
+    groups.set(p.category.slug, g);
+  }
+  return [...groups.values()].sort((a, b) => (order.get(a.slug) ?? 99) - (order.get(b.slug) ?? 99));
 }

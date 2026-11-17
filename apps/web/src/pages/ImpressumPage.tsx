@@ -2,7 +2,7 @@ export function ImpressumPage() {
   return (
     <div className="prose mx-auto max-w-2xl">
       <h1>Impressum</h1>
-      <p className="text-sm text-gray-500">Angaben gemäß § 5 TMG</p>
+      <p className="text-sm text-ink-muted">Angaben gemäß § 5 TMG</p>
 
       <h2>Verantwortlich</h2>
       <p>

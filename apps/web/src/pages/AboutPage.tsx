@@ -20,7 +20,7 @@ export function AboutPage() {
         <li>
           <a
             href="mailto:feedback@sparfuchs-berlin.de"
-            className="text-green-700 hover:underline"
+            className="text-brand-700 hover:underline"
           >
             feedback@sparfuchs-berlin.de
           </a>
@@ -30,7 +30,7 @@ export function AboutPage() {
             href="https://github.com/wakka-2/sparfuchs-berlin/issues"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-green-700 hover:underline"
+            className="text-brand-700 hover:underline"
           >
             GitHub Issues
           </a>
@@ -44,14 +44,14 @@ export function AboutPage() {
           href="https://github.com/wakka-2/sparfuchs-berlin"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-green-700 hover:underline"
+          className="text-brand-700 hover:underline"
         >
           github.com/wakka-2/sparfuchs-berlin
         </a>
         .
       </p>
 
-      <div className="mt-8 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+      <div className="mt-8 rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
         <strong>{t("about.version")}</strong> v1.0.0 — {t("about.versionDate")}
       </div>
     </div>
