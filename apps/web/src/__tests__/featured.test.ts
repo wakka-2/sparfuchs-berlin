@@ -38,3 +38,17 @@ describe("pickFeatured", () => {
     expect(picked.map((p) => p.product.name)).toEqual(["A", "C", "B"]);
   });
 });
+
+import { isLoose, priceLines } from "../lib/format";
+
+describe("loose vs packaged", () => {
+  it.each(["je kg", "kg-Preis", "Dtsch. Bananen, lose", "1 kg"])("treats %s as loose", (u) => expect(isLoose(u)).toBe(true));
+  it.each(["je 1-kg-Packg.", "250-g-Packung", "1,5-L-Flasche", "je Stück", "je 500-g-Schale"])("treats %s as a pack", (u) => expect(isLoose(u)).toBe(false));
+
+  it("leads with the pack price for packs and the kg price for loose goods", () => {
+    expect(priceLines({ price_formatted: "1,15 €", unit_price_formatted: "4,60 €/kg", unit_size: "250-g-Packung" }))
+      .toEqual({ main: "1,15 €", sub: "250-g-Packung · 4,60 €/kg" });
+    expect(priceLines({ price_formatted: "0,99 €", unit_price_formatted: "0,99 €/kg", unit_size: "kg-Preis" }))
+      .toEqual({ main: "0,99 €/kg", sub: null });
+  });
+});

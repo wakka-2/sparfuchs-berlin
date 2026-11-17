@@ -8,7 +8,7 @@ import { ErrorState } from "../components/ErrorState";
 import { StoreBadge } from "../components/StoreBadge";
 import { Icon } from "../components/Icon";
 import { PriceKind } from "../components/PriceKind";
-import { packPrefix } from "../lib/format";
+import { priceLines, isLoose } from "../lib/format";
 import { track } from "../lib/analytics";
 import { categoryIcon } from "../lib/categoryIcon";
 
@@ -64,12 +64,10 @@ export function ProductPage() {
             <div className="rounded-2xl bg-brand-800 p-5 text-white">
               <p className="text-sm text-brand-200">{t("product.bestThisWeek")}</p>
               <p className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                <span className="tabular font-display text-4xl font-bold">{best.price_formatted}</span>
+                <span className="tabular font-display text-4xl font-bold">{priceLines(best).main}</span>
                 <span className="text-lg">{t("search.at")} {best.store_name}</span>
               </p>
-              <p className="tabular mt-1 text-brand-100">
-                {packPrefix(best.unit_size)}<span className="font-semibold text-white">{best.unit_price_formatted}</span>
-              </p>
+              <p className="tabular mt-1 text-brand-100">{priceLines(best).sub ?? t("product.loose")}</p>
               {product.savings && product.savings.percentage >= 1 && (
                 <p className="mt-2 inline-flex rounded-full bg-deal-500 px-3 py-1 text-sm font-bold text-ink">
                   {t("product.savingVsDearest", { pct: Math.round(product.savings.percentage) })}
@@ -108,11 +106,11 @@ export function ProductPage() {
                       )}
                     </div>
                     {price.external_name && <p className="mt-1 font-medium">{price.external_name}</p>}
-                    <p className="tabular text-sm text-ink-muted">{price.unit_size}</p>
+                    <p className="tabular text-sm text-ink-muted">{isLoose(price.unit_size) ? t("product.loose") : price.unit_size}</p>
                   </div>
                   <div className="text-right">
-                    <p className="tabular font-display text-2xl font-bold">{price.price_formatted}</p>
-                    <p className="tabular text-sm font-semibold text-ink-muted">{price.unit_price_formatted}</p>
+                    <p className="tabular font-display text-2xl font-bold">{priceLines(price).main}</p>
+                    {!isLoose(price.unit_size) && <p className="tabular text-sm font-semibold text-ink-muted">{price.unit_price_formatted}</p>}
                     <PriceKind price={price} lang={i18n.language} className="mt-0.5 justify-end" />
                   </div>
                 </div>
