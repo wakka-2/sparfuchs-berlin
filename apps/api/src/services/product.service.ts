@@ -30,6 +30,8 @@ interface StorePrice {
   valid_until: string | null;
   is_cheapest: boolean;
   is_estimated: boolean;
+  /** Flyer offer (true) or everyday shelf price (false) */
+  is_offer: boolean;
   external_name?: string | null;
   external_url?: string | null;
   ean?: string | null;
@@ -65,6 +67,7 @@ function buildPriceList(
     fetchedAt: Date;
     validUntil: string | null;
     isEstimated: boolean;
+    isOffer: boolean;
     externalName?: string | null;
     externalUrl?: string | null;
     ean?: string | null;
@@ -94,6 +97,7 @@ function buildPriceList(
       valid_until: p.validUntil,
       is_cheapest: p.storeSlug === cheapest.storeSlug,
       is_estimated: p.isEstimated,
+      is_offer: p.isOffer,
     };
     if (includeExternal) {
       entry.external_name = p.externalName;
@@ -200,6 +204,7 @@ export async function listProducts(params: ListProductsParams) {
       fetchedAt: prices.fetchedAt,
       validUntil: prices.validUntil,
       isEstimated: prices.isEstimated,
+      isOffer: prices.isOffer,
       externalName: productMatches.externalName,
       externalUrl: productMatches.externalUrl,
     })
@@ -279,6 +284,7 @@ export async function getProductById(id: string, lang: string) {
       fetchedAt: prices.fetchedAt,
       validUntil: prices.validUntil,
       isEstimated: prices.isEstimated,
+      isOffer: prices.isOffer,
       externalName: productMatches.externalName,
       externalUrl: productMatches.externalUrl,
       ean: productMatches.ean,

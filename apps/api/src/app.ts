@@ -6,6 +6,7 @@ import productsRoutes from "./routes/products.js";
 import categoriesRoutes from "./routes/categories.js";
 import storesRoutes from "./routes/stores.js";
 import basketRoutes from "./routes/basket.js";
+import offersRoutes from "./routes/offers.js";
 import healthRoutes from "./routes/health.js";
 import { rateLimit } from "./middleware/rate-limit.js";
 import { captureException } from "./lib/monitoring.js";
@@ -49,6 +50,7 @@ app.route("/products", productsRoutes);
 app.route("/categories", categoriesRoutes);
 app.route("/stores", storesRoutes);
 app.route("/basket", basketRoutes);
+app.route("/offers", offersRoutes);
 app.route("/health", healthRoutes);
 
 export default app;

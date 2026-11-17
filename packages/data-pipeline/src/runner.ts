@@ -2,7 +2,8 @@ import { eq, and, inArray, sql } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { closeBrowser } from "./browser.js";
 import { bestOffers, CATALOG } from "./catalog.js";
-import type { StoreSource, PipelineRunResult } from "./types.js";
+import type { Offer, StoreSource, PipelineRunResult } from "./types.js";
+import { berlinDate, saturdayOf } from "./http.js";
 
 const toCents = (euros: number) => Math.round(euros * 100);
 
@@ -65,6 +66,13 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
     return finish({ status: "failed", productsFetched: 0, productsUpdated: 0, productsFailed: 0, errors: [msg] });
   }
 
+  try {
+    await replaceStoreOffers(store.id, offers);
+  } catch (error) {
+    // Browsing is secondary; the comparison prices below must still be written.
+    console.error(`[pipeline] ${source.storeSlug}: store_offers not written — ${String(error)}`);
+  }
+
   const best = bestOffers(offers);
   const matches = await db
     .select({
@@ -121,6 +129,7 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
           unitType: CATALOG[match.productName].unit,
           unitPriceCents,
           isEstimated: false,
+          isOffer: !offer.regular,
           validUntil: offer.validUntil ?? null,
           fetchedAt: now,
         };
@@ -181,6 +190,29 @@ export async function runPipelineForStore(source: StoreSource): Promise<Pipeline
     productsUpdated: updated,
     productsFailed: errors.length,
     errors,
+  });
+}
+
+/** Replace a store's browsable offers with this run's, in one transaction. */
+async function replaceStoreOffers(storeId: string, offers: Offer[]): Promise<void> {
+  const fallbackUntil = saturdayOf(berlinDate());
+  const rows = offers.map((o) => ({
+    storeId,
+    name: o.name.slice(0, 300),
+    description: o.description ?? null,
+    priceCents: toCents(o.price),
+    unitText: o.unitText.slice(0, 100),
+    baseText: o.baseText?.slice(0, 100) ?? null,
+    imageUrl: o.imageUrl?.slice(0, 500) ?? null,
+    url: o.url?.slice(0, 500) ?? null,
+    isOffer: !o.regular,
+    validUntil: o.validUntil ?? fallbackUntil,
+  }));
+  await db.transaction(async (tx) => {
+    await tx.delete(schema.storeOffers).where(eq(schema.storeOffers.storeId, storeId));
+    for (let i = 0; i < rows.length; i += 500) {
+      await tx.insert(schema.storeOffers).values(rows.slice(i, i + 500));
+    }
   });
 }
 

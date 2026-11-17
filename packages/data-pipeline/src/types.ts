@@ -19,6 +19,8 @@ export interface Offer {
   url?: string;
   /** Last day the offer is valid (ISO date) */
   validUntil?: string;
+  /** Everyday shelf price rather than a flyer offer */
+  regular?: boolean;
 }
 
 /** Store source interface — every store module must implement this */

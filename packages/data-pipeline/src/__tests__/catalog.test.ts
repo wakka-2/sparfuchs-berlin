@@ -20,6 +20,16 @@ describe("catalog rules", () => {
     ["KLOSTERFRAU Heiße Zitrone-Echinacea", 2.99, "je 48 g"],
     ["K-WINTER EDITION Eierlikörfässchen", 3.99, "je 200-g-Packg."],
     ["Wagner Big City Salami", 1.99, "je 415-g-Pckg."],
+    ["LANDFREUDE Gefärbte Eier aus Bodenhaltung", 2.99, "10-Stück-Packung"],
+    ["MEINE METZGEREI Paprika-Schinkengeschnetzeltes", 3.49, "500-g-Packung"],
+    ["KIRI Mit Sahne", 2.79, "je 10 St. = 180-g-Packg."],
+    ["WONNEMEYER Kirschpaprika-Variation", 1.99, "150-g-Packung"],
+    ["MILSANI High-Protein Körniger Frischkäse", 1.98, "4x125-g-Packung"],
+    ["GOURMET FINEST CUISINE Herzogin-Kartoffeln", 1.69, "600-g-Packung"],
+    ["GOLDÄHREN Vollkorn-Wraps", 1.19, "370-g-Packung"],
+    ["TANDIL Feinwaschmittel Pflege", 2.65, "1,5-L-Flasche"],
+    ["STOCKMEYER Gebackene Hähnchenbrust", 1.79, "je 125 g"],
+    ["BELLASAN Rapsöl", 1.39, "0,5-L-Flasche"],
   ])("does not file %s under a staple it merely mentions", (name, price, unit) => {
     expect(matched(offer(name, price, unit))).toEqual([]);
   });
@@ -51,5 +61,21 @@ describe("catalog rules", () => {
 
   it("leaves out an offer that cannot be priced per unit", () => {
     expect(bestOffers([offer("WEIHENSTEPHAN Milch", 0.99, "je Packung")]).size).toBe(0);
+  });
+
+  it.each([
+    ["ALL SEASONS Paprika", "580-ml-Glas"],
+    ["KING'S CROWN Erbsen", "425-ml-Dose"],
+  ])("excludes %s by its packaging (%s)", (name, unit) => {
+    expect(matched(offer(name, 1.29, unit))).toEqual([]);
+  });
+
+  it("keeps loose fruit sold per kg (\"kg-Preis\" is not ice cream)", () => {
+    expect(matched(offer("Bananen", 0.99, "kg-Preis"))).toEqual(["Bananen"]);
+  });
+
+  it("prices cream sold by weight per litre", () => {
+    const best = bestOffers([offer("MILSANI Schlagsahne", 0.89, "200-g-Becher", "1 kg = 4.45")]);
+    expect(best.get("Sahne")?.unitPrice).toBeCloseTo(4.45);
   });
 });
