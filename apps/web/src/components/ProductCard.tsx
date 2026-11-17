@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Product } from "../lib/api";
 import { AddToListButton } from "./AddToListButton";
 import { StoreBadge } from "./StoreBadge";
+import { priceLines } from "../lib/format";
 import { Icon } from "./Icon";
 import { categoryIcon } from "../lib/categoryIcon";
 import { PriceKind } from "./PriceKind";
@@ -12,9 +13,10 @@ import { PriceKind } from "./PriceKind";
  * this week — pack sizes differ between stores, so pack prices alone mislead.
  */
 export function ProductCard({ product }: { product: Product }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [best, ...others] = product.prices; // API sorts by unit price
   const image = best?.store_image_url ?? product.image_url;
+  const bestLines = best ? priceLines(best) : null;
   const saving = product.savings && product.savings.percentage >= 5 ? Math.round(product.savings.percentage) : null;
 
   if (!best) {
@@ -77,12 +79,10 @@ export function ProductCard({ product }: { product: Product }) {
 
         <div className="rounded-xl bg-brand-50 px-3 py-2.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-            <span className="tabular font-display text-xl font-bold text-brand-800 sm:text-2xl">{best.unit_price_formatted}</span>
+            <span className="tabular font-display text-xl font-bold text-brand-800 sm:text-2xl">{bestLines!.main}</span>
             <span className="text-sm text-brand-800"><StoreBadge name={best.store_name} color={best.store_color} strong /></span>
           </div>
-          <p className="tabular mt-0.5 text-sm text-ink-muted">
-            {best.price_formatted} · {best.unit_size}
-          </p>
+          <p className="tabular mt-0.5 text-sm text-ink-muted">{bestLines!.sub ?? t("product.loose")}</p>
         </div>
 
         {others.length > 0 && (
@@ -90,7 +90,10 @@ export function ProductCard({ product }: { product: Product }) {
             {others.map((p) => (
               <li key={p.store_slug} className="flex items-center justify-between gap-2">
                 <StoreBadge name={p.store_name} color={p.store_color} />
-                <span className="tabular text-ink-muted">{p.unit_price_formatted}</span>
+                <span className="tabular text-right">
+                  <span className="font-semibold text-ink">{priceLines(p).main}</span>
+                  {priceLines(p).sub && <span className="text-ink-subtle"> · {p.unit_price_formatted}</span>}
+                </span>
               </li>
             ))}
           </ul>

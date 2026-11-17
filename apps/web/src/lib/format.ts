@@ -26,3 +26,20 @@ export function formatBasePrice(text: string): string {
   const clean = text.replace(/[()€]/g, "").replace(/(\d)\.(\d)/g, "$1,$2").replace(/\s+/g, " ").trim();
   return clean ? `${clean} €` : "";
 }
+
+/** "250-g-Packung · " — or nothing when the store's text carries no size ("je"). */
+export const packPrefix = (unitSize: string) => (/\d/.test(unitSize) ? `${unitSize} · ` : "");
+
+/**
+ * Sold loose (you pick the amount) rather than in a pack: "je kg", "kg-Preis",
+ * "lose". "je 1-kg-Packg." is a pack and does not count.
+ */
+export const isLoose = (unitSize: string) =>
+  /^(je\s*)?(1\s*)?kg\.?$|kg-preis|\blose\b|^per kg$/i.test(unitSize.trim());
+
+/** What to show large and what below: the pack price, or for loose goods the price per kg. */
+export function priceLines(p: { price_formatted: string; unit_price_formatted: string; unit_size: string }) {
+  return isLoose(p.unit_size)
+    ? { main: p.unit_price_formatted, sub: null }
+    : { main: p.price_formatted, sub: `${packPrefix(p.unit_size)}${p.unit_price_formatted}` };
+}
