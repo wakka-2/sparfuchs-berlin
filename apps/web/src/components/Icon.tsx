@@ -10,6 +10,8 @@ const PATHS = {
   minus: "M5 12h14",
   check: "M20 6 9 17l-5-5",
   x: "M18 6 6 18M6 6l12 12",
+  pause: "M8 5v14M16 5v14",
+  play: "M7 4l13 8-13 8z",
   trash: "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6",
   calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
   external: "M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",

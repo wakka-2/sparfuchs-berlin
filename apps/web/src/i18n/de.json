@@ -164,5 +164,31 @@
     "approve": "Ja",
     "reject": "Nein",
     "open": "Im Shop ansehen"
+  },
+  "featured": {
+    "title": "Top-Angebote der Woche",
+    "carousel": "Karussell",
+    "slide": "Angebot",
+    "slideOf": "{{n}} von {{count}}",
+    "badge": "{{pct}} % günstiger pro {{unit}}",
+    "at": "bei {{store}}",
+    "instead": "statt {{price}} bei {{store}}",
+    "cta": "Preise vergleichen",
+    "pause": "Automatischen Wechsel anhalten",
+    "play": "Automatischen Wechsel starten",
+    "goTo": "Angebot {{n}}: {{name}}"
+  },
+  "countdown": {
+    "endsIn": "Angebote enden in",
+    "startsIn": "Neue Angebote in",
+    "days": "Tage",
+    "hours": "Std",
+    "minutes": "Min",
+    "seconds": "Sek",
+    "validUntil": "Gültig bis {{date}}",
+    "nextFrom": "Neue Wochenangebote ab {{date}}",
+    "ended": "Die Angebote dieser Woche sind vorbei.",
+    "srEnds": "Die Angebote gelten bis {{date}} – neue Wochenangebote ab {{next}}",
+    "srStarts": "Neue Wochenangebote ab {{next}}"
   }
 }
