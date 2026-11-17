@@ -26,3 +26,6 @@ export function formatBasePrice(text: string): string {
   const clean = text.replace(/[()€]/g, "").replace(/(\d)\.(\d)/g, "$1,$2").replace(/\s+/g, " ").trim();
   return clean ? `${clean} €` : "";
 }
+
+/** "250-g-Packung · " — or nothing when the store's text carries no size ("je"). */
+export const packPrefix = (unitSize: string) => (/\d/.test(unitSize) ? `${unitSize} · ` : "");

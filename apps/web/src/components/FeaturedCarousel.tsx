@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { FeaturedOffer } from "../lib/featured";
-import { formatValidUntil } from "../lib/format";
+import { formatValidUntil, packPrefix } from "../lib/format";
 import { AddToListButton } from "./AddToListButton";
 import { Icon } from "./Icon";
 import { track } from "../lib/analytics";
@@ -85,8 +85,11 @@ export function FeaturedCarousel({ offers }: { offers: FeaturedOffer[] }) {
                     <p className="mt-1 line-clamp-1 text-brand-100" title={o.best.external_name}>{o.best.external_name}</p>
                   )}
                   <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:mt-4">
-                    <span className="tabular font-display text-3xl font-bold sm:text-5xl">{o.best.unit_price_formatted}</span>
+                    <span className="tabular font-display text-3xl font-bold sm:text-5xl">{o.best.price_formatted}</span>
                     <span className="text-lg text-brand-100">{t("featured.at", { store: o.best.store_name })}</span>
+                  </p>
+                  <p className="tabular mt-1 text-brand-50">
+                    {packPrefix(o.best.unit_size)}<span className="font-semibold text-white">{o.best.unit_price_formatted}</span>
                   </p>
                   <p className="tabular mt-1 text-sm text-brand-100">
                     {t("featured.instead", { price: o.dearest.unit_price_formatted, store: o.dearest.store_name })}

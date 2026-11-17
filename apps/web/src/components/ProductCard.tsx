@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { Product } from "../lib/api";
 import { AddToListButton } from "./AddToListButton";
 import { StoreBadge } from "./StoreBadge";
+import { packPrefix } from "../lib/format";
 import { Icon } from "./Icon";
 import { categoryIcon } from "../lib/categoryIcon";
 import { PriceKind } from "./PriceKind";
@@ -77,11 +78,11 @@ export function ProductCard({ product }: { product: Product }) {
 
         <div className="rounded-xl bg-brand-50 px-3 py-2.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-            <span className="tabular font-display text-xl font-bold text-brand-800 sm:text-2xl">{best.unit_price_formatted}</span>
+            <span className="tabular font-display text-xl font-bold text-brand-800 sm:text-2xl">{best.price_formatted}</span>
             <span className="text-sm text-brand-800"><StoreBadge name={best.store_name} color={best.store_color} strong /></span>
           </div>
           <p className="tabular mt-0.5 text-sm text-ink-muted">
-            {best.price_formatted} · {best.unit_size}
+            {packPrefix(best.unit_size)}<span className="font-semibold text-ink">{best.unit_price_formatted}</span>
           </p>
         </div>
 
@@ -90,7 +91,10 @@ export function ProductCard({ product }: { product: Product }) {
             {others.map((p) => (
               <li key={p.store_slug} className="flex items-center justify-between gap-2">
                 <StoreBadge name={p.store_name} color={p.store_color} />
-                <span className="tabular text-ink-muted">{p.unit_price_formatted}</span>
+                <span className="tabular text-right">
+                  <span className="font-semibold text-ink">{p.price_formatted}</span>
+                  <span className="text-ink-subtle"> · {p.unit_price_formatted}</span>
+                </span>
               </li>
             ))}
           </ul>
