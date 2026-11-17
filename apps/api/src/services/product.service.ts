@@ -9,6 +9,12 @@ import {
 } from "../db/schema.js";
 import { formatCents, formatUnitPrice } from "../lib/response.js";
 
+/**
+ * Only offers that are valid today (Berlin) are prices. Expired rows and
+ * legacy rows without a validity date never reach the site.
+ */
+export const isCurrentPrice = sql`${prices.validUntil} >= (now() AT TIME ZONE 'Europe/Berlin')::date`;
+
 interface StorePrice {
   store_slug: string;
   store_name: string;
@@ -20,6 +26,8 @@ interface StorePrice {
   unit_price_cents: number;
   unit_price_formatted: string;
   fetched_at: string;
+  /** Last day of the offer (YYYY-MM-DD) */
+  valid_until: string | null;
   is_cheapest: boolean;
   is_estimated: boolean;
   external_name?: string | null;
@@ -55,6 +63,7 @@ function buildPriceList(
     unitType: string;
     unitPriceCents: number;
     fetchedAt: Date;
+    validUntil: string | null;
     isEstimated: boolean;
     externalName?: string | null;
     externalUrl?: string | null;
@@ -66,7 +75,8 @@ function buildPriceList(
     return { prices: [], savings: null };
   }
 
-  const sorted = [...rawPrices].sort((a, b) => a.priceCents - b.priceCents);
+  // Rank by unit price: a 250 g pack and a 500 g pack are only comparable per kg.
+  const sorted = [...rawPrices].sort((a, b) => a.unitPriceCents - b.unitPriceCents);
   const cheapest = sorted[0];
 
   const priceList: StorePrice[] = sorted.map((p) => {
@@ -81,6 +91,7 @@ function buildPriceList(
       unit_price_cents: p.unitPriceCents,
       unit_price_formatted: formatUnitPrice(p.unitPriceCents, p.unitType),
       fetched_at: p.fetchedAt.toISOString(),
+      valid_until: p.validUntil,
       is_cheapest: p.storeSlug === cheapest.storeSlug,
       is_estimated: p.isEstimated,
     };
@@ -93,15 +104,17 @@ function buildPriceList(
   });
 
   let savings: ProductWithPrices["savings"] = null;
-  if (sorted.length >= 2) {
+  const spread = sorted.length >= 2 ? sorted[sorted.length - 1].unitPriceCents - cheapest.unitPriceCents : 0;
+  if (spread > 0) {
+    // Compared per unit, so the saving holds whatever pack size you buy.
     const most = sorted[sorted.length - 1];
-    const diff = most.priceCents - cheapest.priceCents;
-    const pct = most.priceCents > 0 ? (diff / most.priceCents) * 100 : 0;
+    const diff = most.unitPriceCents - cheapest.unitPriceCents;
+    const pct = most.unitPriceCents > 0 ? (diff / most.unitPriceCents) * 100 : 0;
     savings = {
       amount_cents: diff,
       percentage: Math.round(pct * 100) / 100,
       cheapest_store_slug: cheapest.storeSlug,
-      label: `${formatCents(diff)} günstiger bei ${cheapest.storeName}`,
+      label: `${Math.round(pct)} % günstiger pro ${cheapest.unitType} bei ${cheapest.storeName}`,
     };
   }
 
@@ -154,10 +167,13 @@ export async function listProducts(params: ListProductsParams) {
     .orderBy(
       // Products with at least one price sort first (NULLS LAST = no price = end)
       sql`(
-        SELECT MIN(p2.price_cents)
+        SELECT -COUNT(*)
         FROM prices p2
         INNER JOIN product_matches pm2 ON pm2.id = p2.product_match_id
+        INNER JOIN stores s2 ON s2.id = pm2.store_id AND s2.is_active = true
         WHERE pm2.product_id = ${products.id} AND pm2.is_active = true
+          AND p2.valid_until >= (now() AT TIME ZONE 'Europe/Berlin')::date
+        HAVING COUNT(*) > 0
       ) NULLS LAST`,
       asc(products.nameDe),
     )
@@ -182,7 +198,10 @@ export async function listProducts(params: ListProductsParams) {
       unitType: prices.unitType,
       unitPriceCents: prices.unitPriceCents,
       fetchedAt: prices.fetchedAt,
+      validUntil: prices.validUntil,
       isEstimated: prices.isEstimated,
+      externalName: productMatches.externalName,
+      externalUrl: productMatches.externalUrl,
     })
     .from(prices)
     .innerJoin(productMatches, eq(productMatches.id, prices.productMatchId))
@@ -192,6 +211,7 @@ export async function listProducts(params: ListProductsParams) {
         sql`${productMatches.productId} IN ${productIds}`,
         eq(productMatches.isActive, true),
         eq(stores.isActive, true),
+        isCurrentPrice,
       ),
     );
 
@@ -206,7 +226,8 @@ export async function listProducts(params: ListProductsParams) {
   // Build response
   const result: ProductWithPrices[] = productRows.map((p) => {
     const rawPrices = pricesByProduct.get(p.id) ?? [];
-    const { prices: priceList, savings } = buildPriceList(rawPrices);
+    // Cards name the exact product each store sells, so shoppers can find it.
+    const { prices: priceList, savings } = buildPriceList(rawPrices, true);
 
     return {
       id: p.id,
@@ -256,6 +277,7 @@ export async function getProductById(id: string, lang: string) {
       unitType: prices.unitType,
       unitPriceCents: prices.unitPriceCents,
       fetchedAt: prices.fetchedAt,
+      validUntil: prices.validUntil,
       isEstimated: prices.isEstimated,
       externalName: productMatches.externalName,
       externalUrl: productMatches.externalUrl,
@@ -269,6 +291,7 @@ export async function getProductById(id: string, lang: string) {
         eq(productMatches.productId, id),
         eq(productMatches.isActive, true),
         eq(stores.isActive, true),
+        isCurrentPrice,
       ),
     );
 
@@ -352,17 +375,25 @@ async function formatSearchResults(
       productId: productMatches.productId,
       storeSlug: stores.slug,
       priceCents: prices.priceCents,
+      unitPriceCents: prices.unitPriceCents,
     })
     .from(prices)
     .innerJoin(productMatches, eq(productMatches.id, prices.productMatchId))
     .innerJoin(stores, eq(stores.id, productMatches.storeId))
-    .where(sql`${productMatches.productId} IN ${ids}`);
+    .where(
+      and(
+        sql`${productMatches.productId} IN ${ids}`,
+        eq(productMatches.isActive, true),
+        eq(stores.isActive, true),
+        isCurrentPrice,
+      ),
+    );
 
-  const cheapestByProduct = new Map<string, { cents: number; slug: string }>();
+  const cheapestByProduct = new Map<string, { cents: number; unit: number; slug: string }>();
   for (const row of priceRows) {
     const existing = cheapestByProduct.get(row.productId);
-    if (!existing || row.priceCents < existing.cents) {
-      cheapestByProduct.set(row.productId, { cents: row.priceCents, slug: row.storeSlug });
+    if (!existing || row.unitPriceCents < existing.unit) {
+      cheapestByProduct.set(row.productId, { cents: row.priceCents, unit: row.unitPriceCents, slug: row.storeSlug });
     }
   }
 
@@ -420,16 +451,17 @@ export async function listStores() {
   for (const store of rows) {
     const [{ cnt }] = await db
       .select({ cnt: count() })
-      .from(productMatches)
+      .from(prices)
+      .innerJoin(productMatches, eq(productMatches.id, prices.productMatchId))
       .innerJoin(stores, eq(stores.id, productMatches.storeId))
-      .where(and(eq(stores.slug, store.slug), eq(productMatches.isActive, true)));
+      .where(and(eq(stores.slug, store.slug), eq(productMatches.isActive, true), isCurrentPrice));
 
     const [lastPrice] = await db
       .select({ fetchedAt: prices.fetchedAt })
       .from(prices)
       .innerJoin(productMatches, eq(productMatches.id, prices.productMatchId))
       .innerJoin(stores, eq(stores.id, productMatches.storeId))
-      .where(eq(stores.slug, store.slug))
+      .where(and(eq(stores.slug, store.slug), isCurrentPrice))
       .orderBy(desc(prices.fetchedAt))
       .limit(1);
 

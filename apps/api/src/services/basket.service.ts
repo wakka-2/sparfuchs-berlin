@@ -2,6 +2,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { products, productMatches, prices, stores } from "../db/schema.js";
 import { formatCents } from "../lib/response.js";
+import { isCurrentPrice } from "./product.service.js";
 
 interface BasketItem {
   product_id: string;
@@ -31,6 +32,7 @@ export async function calculateBasket(items: BasketItem[]) {
         eq(products.isActive, true),
         eq(productMatches.isActive, true),
         eq(stores.isActive, true),
+        isCurrentPrice,
       ),
     );
 

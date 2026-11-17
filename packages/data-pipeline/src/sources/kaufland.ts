@@ -1,288 +1,67 @@
 /**
- * Kaufland scraper — weekly in-store offers.
+ * Kaufland — weekly in-store offers from filiale.kaufland.de
  *
- * Source: filiale.kaufland.de/angebote/uebersicht.html (.k-product-tile)
- *
- * Offer tiles usually carry a "-XX%" discount badge; parseTile() also handles
- * badge-less tiles, taking the first price as the regular shelf price.
- *
- * Products not in this week's offers get no price. Kaufland publishes no
- * usable regular-price source: the old product-search URL 404s, and the
- * current one is behind a Cloudflare challenge and returns marketplace
- * listings rather than grocery shelf prices.
+ * The page embeds every offer as structured JSON (window.SSR[...]): price,
+ * pack size, base price, sales window, image. No browser needed.
  */
-import type { RawProductData, StoreSource } from "../types.js";
-import { newPage, gotoWithRetry } from "../browser.js";
-import { bestMatch } from "../matching.js";
+import type { Offer, StoreSource } from "../types.js";
+import { fetchText, berlinDate } from "../http.js";
 
 const OFFERS_URL = "https://filiale.kaufland.de/angebote/uebersicht.html";
 
-function sleep(ms: number) {
-  return new Promise<void>((r) => setTimeout(r, ms));
+interface KauflandOffer {
+  offerId: string;
+  title?: string;
+  subtitle?: string;
+  detailDescription?: string;
+  price?: number;
+  unit?: string;
+  basePrice?: string;
+  listImage?: string;
+  salesFrom: string;
+  salesTo: string;
 }
 
-interface ScrapedOffer {
-  name: string;
-  price: number;
-  unitSize: string;
-  imageUrl: string | undefined;
-}
+const clean = (s?: string) =>
+  // \s also matches the U+2028 line separators Kaufland puts in titles.
+  (s ?? "").replace(/&#x2028;/g, " ").replace(/\s+/g, " ").trim();
 
-async function acceptCookies(page: import("playwright").Page) {
-  try {
-    await page.evaluate(() => {
-      const btns = [...document.querySelectorAll("button")];
-      const accept = btns.find((b) =>
-        /akzeptieren|zustimmen|alle.*cookie|accept/i.test(b.textContent ?? ""),
-      );
-      if (accept) (accept as HTMLElement).click();
-    });
-    await sleep(800);
-  } catch {
-    // banner not present
-  }
-}
+export function parseKaufland(html: string, today: string = berlinDate()): Offer[] {
+  const ssr = [...html.matchAll(/window\.SSR\['[^']+'\]\s*=\s*(\{.*?\})\s*;?\s*<\/script>/gs)]
+    .map((m) => m[1])
+    .find((json) => json.includes('"offerData"'));
+  if (!ssr) throw new Error("kaufland: offer data not found — page structure changed");
 
-/**
- * Parse a single Kaufland product tile.
- *
- * Sale tile:     "-XX%\nsale_price\noriginal_price"  → take sale_price
- * Regular tile:  no badge → take the first X.XX price found
- *
- * Prices use dot notation (1.79, not 1,79).
- * Product name comes from img alt attribute.
- */
-function parseTile(text: string, imgAlt: string, imgSrc: string): ScrapedOffer | null {
-  const lines = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const cycles: Array<{ categories: Array<{ offers: KauflandOffer[] }> }> =
+    JSON.parse(ssr).props.offerData.cycles;
 
-  const priceRe = /^(\d+)\.(\d{2})$/;
-  const pctRe = /^-\d+%$/;
-
-  let price: number | null = null;
-  let unitSize = "";
-
-  // Strategy 1: discount badge present → next line is sale price
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!unitSize && /^je\s|[-–]\d+[-–](g|ml|l|kg|cl)[-–]/i.test(line)) {
-      unitSize = line;
-    }
-    if (pctRe.test(line) && price === null) {
-      const next = lines[i + 1];
-      if (next) {
-        const m = next.match(priceRe);
-        if (m) price = parseFloat(`${m[1]}.${m[2]}`);
+  // The same article is listed under several themed sections.
+  const byId = new Map<string, Offer>();
+  for (const cycle of cycles) {
+    for (const category of cycle.categories) {
+      for (const o of category.offers) {
+        if (!o.price || byId.has(o.offerId)) continue;
+        // Skips next week's preview and "from Thursday" offers that have not started.
+        if (today < o.salesFrom || today > o.salesTo) continue;
+        byId.set(o.offerId, {
+          name: clean(`${o.title ?? ""} ${o.subtitle ?? ""}`),
+          description: clean(o.detailDescription),
+          price: o.price,
+          unitText: clean(o.unit),
+          baseText: clean(o.basePrice) || undefined,
+          imageUrl: o.listImage,
+          url: OFFERS_URL,
+          validUntil: o.salesTo,
+        });
       }
     }
   }
-
-  // Strategy 2: no discount badge → take the first X.XX number (regular shelf price)
-  if (price === null) {
-    for (const line of lines) {
-      if (!unitSize && /^je\s|[-–]\d+[-–](g|ml|l|kg|cl)[-–]/i.test(line)) {
-        unitSize = line;
-      }
-      const m = line.match(priceRe);
-      if (m) {
-        price = parseFloat(`${m[1]}.${m[2]}`);
-        break;
-      }
-    }
-  }
-
-  if (price === null || price <= 0) return null;
-
-  // Skip price/badge/unit lines when imgAlt is missing so we don't get "-25% 1.79" as the name
-  const nameSkipRe = /^(-\d+%|\d+[.,]\d{2}|je\s|\d+\s*(g|ml|l|kg|cl)\b)/i;
-  const textLines = lines.filter((l) => !nameSkipRe.test(l));
-  const name = imgAlt.trim() || textLines[0] || "";
-  if (!name) return null;
-
-  return { name, price, unitSize, imageUrl: imgSrc || undefined };
+  return [...byId.values()];
 }
-
-async function extractTiles(
-  page: import("playwright").Page,
-): Promise<Array<{ text: string; imgAlt: string; imgSrc: string }>> {
-  return page.evaluate(() => {
-    // Try multiple selector patterns — kaufland.de and filiale.kaufland.de may differ
-    const selectors = [".k-product-tile", ".product-tile", "[class*='product-tile']"];
-    let tiles: NodeListOf<HTMLElement> | null = null;
-    for (const sel of selectors) {
-      const found = document.querySelectorAll<HTMLElement>(sel);
-      if (found.length > 0) { tiles = found; break; }
-    }
-    if (!tiles) return [];
-    return Array.from(tiles).map((tile) => {
-      const img = [...tile.querySelectorAll<HTMLImageElement>("img")].find(
-        (i) => i.src && !i.src.includes(".svg") && !i.src.startsWith("data:"),
-      );
-      return {
-        text: tile.innerText ?? "",
-        imgAlt: img?.alt ?? "",
-        imgSrc: img?.src ?? "",
-      };
-    });
-  });
-}
-
-/**
- * Scroll the page, tolerating navigation mid-scroll.
- *
- * The offers page auto-advances through its category carousel, rewriting the
- * URL (?kloffer-category=...) about a dozen times after load. Any evaluate()
- * that lands during one of those navigations throws "Execution context was
- * destroyed", so scrolling is best-effort: a lost step just means one less
- * lazy-load nudge, not a failed scrape.
- */
-async function scrollThrough(page: import("playwright").Page, steps: number): Promise<void> {
-  for (let i = 1; i <= steps; i++) {
-    try {
-      await page.evaluate((f: number) => {
-        window.scrollTo(0, document.body.scrollHeight * f);
-      }, i / steps);
-    } catch {
-      // navigated mid-scroll — keep going
-    }
-    await sleep(400);
-  }
-}
-
-async function scrapeAllOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
-  await gotoWithRetry(page, OFFERS_URL, { timeout: 30000 });
-
-  // Wait for the carousel's redirect storm to settle before touching the DOM.
-  // Without this the very first evaluate() reliably dies with "Execution
-  // context was destroyed" and the store yields zero prices.
-  await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
-  await sleep(2000);
-
-  await acceptCookies(page);
-  await sleep(1000);
-
-  await scrollThrough(page, 12);
-  await sleep(2500);
-
-  // One retry: if a late navigation lands here, the DOM is still there
-  // afterwards — only the execution context was replaced.
-  let rawTiles: Array<{ text: string; imgAlt: string; imgSrc: string }>;
-  try {
-    rawTiles = await extractTiles(page);
-  } catch {
-    await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
-    await sleep(1500);
-    rawTiles = await extractTiles(page);
-  }
-
-  // The carousel means the same article can appear under several categories.
-  const byName = new Map<string, ScrapedOffer>();
-  for (const { text, imgAlt, imgSrc } of rawTiles) {
-    const parsed = parseTile(text, imgAlt, imgSrc);
-    if (parsed && !byName.has(parsed.name)) byName.set(parsed.name, parsed);
-  }
-  return [...byName.values()];
-}
-
-
 
 export class KauflandSource implements StoreSource {
   readonly storeSlug = "kaufland";
-
-  private offersCache: ScrapedOffer[] | null = null;
-
-  private async getOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
-    if (this.offersCache) return this.offersCache;
-    console.log("[kaufland] Scraping weekly offers page...");
-    try {
-      const offers = await scrapeAllOffers(page);
-      console.log(`[kaufland] Found ${offers.length} offer tiles`);
-      this.offersCache = offers;
-      return offers;
-    } catch (err) {
-      // A failing offers page must not abort the whole store — the other
-      // stores' results are still worth committing. Cache the empty result so
-      // we don't re-attempt (and re-fail) the page once per product.
-      console.warn(
-        `[kaufland] Offers page unavailable: ${err instanceof Error ? err.message : String(err)} — no prices for this store`,
-      );
-      this.offersCache = [];
-      return [];
-    }
-  }
-
-  async fetchProduct(
-    _externalId: string,
-    productName: string,
-  ): Promise<RawProductData | null> {
-    const page = await newPage();
-    try {
-      const offers = await this.getOffers(page);
-      const match = bestMatch(productName, offers);
-      if (match) {
-        console.log(`[kaufland] "${productName}" → offer "${match.name}" @ ${match.price} €`);
-        return {
-          externalId: "",
-          name: match.name,
-          price: match.price,
-          currency: "EUR",
-          unitSize: match.unitSize,
-          imageUrl: match.imageUrl,
-          url: OFFERS_URL,
-          isEstimated: false,
-        };
-      }
-
-      // No catalog-search fallback: the product-search URL returns HTTP 404,
-      // and the current one (kaufland.de/s/) is behind a Cloudflare challenge
-      // and serves marketplace listings rather than grocery shelf prices —
-      // "Eier" there returns egg cookers and egg cups. This lookup was the
-      // single biggest cost in the pipeline (~25s per product).
-      console.warn(`[kaufland] Not on offer this week: "${productName}"`);
-      return null;
-    } catch (err) {
-      console.error(`[kaufland] Error: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
-    } finally {
-      await page.context().close();
-    }
-  }
-
-  async fetchAll(
-    products: Array<{ externalProductId: string | null; productName: string }>,
-  ): Promise<RawProductData[]> {
-    const page = await newPage();
-    try {
-      const offers = await this.getOffers(page);
-      const results: RawProductData[] = [];
-
-      for (const product of products) {
-        const match = bestMatch(product.productName, offers);
-        if (match) {
-          console.log(
-            `[kaufland] "${product.productName}" → offer "${match.name}" @ ${match.price} €`,
-          );
-          results.push({
-            externalId: "",
-            name: match.name,
-            price: match.price,
-            currency: "EUR",
-            unitSize: match.unitSize,
-            imageUrl: match.imageUrl,
-            url: OFFERS_URL,
-            isEstimated: false,
-          });
-        } else {
-          // Not in this week's offers means no price: see the file header for
-          // why Kaufland has no usable regular-price source.
-          console.warn(`[kaufland] Not on offer this week: "${product.productName}"`);
-        }
-      }
-      return results;
-    } finally {
-      await page.context().close();
-    }
+  async fetchOffers(): Promise<Offer[]> {
+    return parseKaufland(await fetchText(OFFERS_URL));
   }
 }

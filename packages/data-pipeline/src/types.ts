@@ -1,58 +1,42 @@
 /**
- * Internal types for the data pipeline.
- * These are not exported to other packages — they define the contract
- * between fetchers, normalizer, and pipeline runner.
+ * Internal types for the data pipeline — the contract between store sources,
+ * the catalog rules, and the runner.
  */
 
-/** Raw product data as returned by a store data source (before normalization) */
-export interface RawProductData {
-  externalId: string;
+/** One offer exactly as a store publishes it, before catalog matching. */
+export interface Offer {
+  /** Brand + product name as the store prints it */
   name: string;
+  /** Extra text (variety, origin) — used for matching only, never shown */
+  description?: string;
+  /** Pack price in euros */
   price: number;
-  currency: string;
-  unitSize: string;
+  /** Pack size as the store prints it: "je 250 g", "500-g-Packung" */
+  unitText: string;
+  /** The store's own base price when it gives one: "1 kg = 6.36" */
+  baseText?: string;
   imageUrl?: string;
-  ean?: string;
   url?: string;
-  /** True when the price comes from the fallback table, not a live scrape */
-  isEstimated?: boolean;
+  /** Last day the offer is valid (ISO date) */
+  validUntil?: string;
 }
 
-/** Normalized product price ready for DB upsert */
-export interface NormalizedPrice {
-  productMatchId: string;
-  priceCents: number;
-  unitSize: string;
-  unitType: string;
-  unitPriceCents: number;
-  isEstimated: boolean;
-}
-
-/** Result of a single product fetch attempt */
-export interface FetchResult {
-  productMatchId: string;
-  externalProductId: string;
-  success: boolean;
-  data?: RawProductData;
-  error?: string;
+/** Store source interface — every store module must implement this */
+export interface StoreSource {
+  readonly storeSlug: string;
+  /** All offers valid today. Throws when the store cannot be read. */
+  fetchOffers(): Promise<Offer[]>;
 }
 
 /** Pipeline run summary */
 export interface PipelineRunResult {
   storeSlug: string;
-  status: "success" | "partial" | "failed";
+  status: "success" | "failed";
+  /** Offers read from the store */
   productsFetched: number;
+  /** Catalog products that got a current price */
   productsUpdated: number;
   productsFailed: number;
   errors: string[];
   durationMs: number;
-}
-
-/** Store source interface — every fetcher must implement this */
-export interface StoreSource {
-  readonly storeSlug: string;
-  fetchProduct(externalId: string, productName: string): Promise<RawProductData | null>;
-  fetchAll(
-    products: Array<{ externalProductId: string | null; productName: string }>,
-  ): Promise<RawProductData[]>;
 }

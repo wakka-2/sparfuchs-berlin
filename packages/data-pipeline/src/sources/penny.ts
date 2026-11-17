@@ -1,236 +1,89 @@
 /**
- * Penny scraper — scrapes weekly offers from penny.de/angebote
+ * Penny — weekly offers from penny.de
  *
- * Flow:
- * 1. Load the offers page, accept cookies
- * 2. Scroll to load all lazy-rendered offer tiles
- * 3. Parse each .offer-tile for name / price / image
- * 4. For fetchAll(): fuzzy-match offer names to catalog products
- *
- * Price format: "1.99*" or "2.29" (dot notation, * = App price suffix)
- * Tile text order: [Nur mit App, app_price*,] [UVP X.XX,] sale_price, [-XX%,]
- *                  PRODUCT NAME, unit info
+ * The offers page is a shell; the tiles come from a JSON endpoint per flyer
+ * section (/.rest/offers/by-category/<year>-<week>/<section>). We read the
+ * section list from the page and then fetch the JSON directly.
  */
-import type { RawProductData, StoreSource } from "../types.js";
-import { newPage } from "../browser.js";
-import { bestMatch } from "../matching.js";
+import type { Offer, StoreSource } from "../types.js";
+import { fetchText, berlinDate, saturdayOf } from "../http.js";
 
-const OFFERS_URL = "https://www.penny.de/angebote";
+const BASE = "https://www.penny.de";
+const OFFERS_URL = `${BASE}/angebote`;
 
-function sleep(ms: number) {
-  return new Promise<void>((r) => setTimeout(r, ms));
+interface PennyTile {
+  primaryType?: string;
+  title?: string;
+  quantity?: string;
+  price?: string;
+  basePrice?: string;
+  detailLinkHref?: string;
+  imageRendition?: { tileMd?: string };
 }
 
-interface ScrapedOffer {
-  name: string;
-  price: number;
-  unitSize: string;
-  imageUrl: string | undefined;
+/** Sections are prefixed with the weekday they start on: "ab-donnerstag--getraenke1". */
+const START_DAY: Record<string, number> = {
+  montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6,
+};
+
+/** Section slugs of the current week that have already started. */
+export function parsePennySections(html: string, today: string): string[] {
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay() || 7;
+  const sections = new Set<string>();
+  for (const [tag] of html.matchAll(/<button[^>]*data-category-id="[^"]+"[^>]*>/g)) {
+    if (!tag.includes('data-week="current"')) continue;
+    const id = tag.match(/data-category-id="ab-([a-z]+)--([^"]+)"/);
+    if (id && (START_DAY[id[1]] ?? 1) <= weekday) sections.add(id[2]);
+  }
+  return [...sections];
 }
 
-async function acceptCookies(page: import("playwright").Page) {
-  try {
-    await page.evaluate(() => {
-      const btns = [...document.querySelectorAll("button")];
-      const accept = btns.find((b) =>
-        /akzeptieren|zustimmen|alle.*cookie|accept/i.test(b.textContent ?? ""),
-      );
-      if (accept) (accept as HTMLElement).click();
+export function parsePennyTiles(tiles: PennyTile[], validUntil: string): Offer[] {
+  const offers: Offer[] = [];
+  for (const t of tiles) {
+    // Only plain offers: "promo" tiles carry app-only and multi-buy prices
+    // ("1.79²"), which are not the price everyone pays at the till.
+    if (t.primaryType !== "offer" || !t.title || !/^\d+\.\d{2}$/.test(t.price ?? "")) continue;
+    if (/app/i.test(`${t.quantity} ${t.basePrice}`)) continue;
+    offers.push({
+      name: t.title.replace(/[­*]/g, "").trim(),
+      price: parseFloat(t.price!),
+      unitText: t.quantity ?? "",
+      baseText: t.basePrice || undefined,
+      imageUrl: t.imageRendition?.tileMd,
+      url: t.detailLinkHref ? BASE + t.detailLinkHref.split("~")[0] : OFFERS_URL,
+      validUntil,
     });
-    await sleep(1000);
-  } catch {
-    // banner not present
   }
+  return offers;
 }
 
-/**
- * Parse a single Penny offer tile.
- *
- * Text examples:
- *   "Nur mit App\n1.99*\nUVP 3.99\n2.29\n-50%\n-42%\nMEGGLE Streichzart*\nje 400 g (1 kg = 4.98)"
- *   "UVP 3.99\n1.79\n-55%\nSALAKIS Natur\nje 180 g (1 kg = 9.94)"
- *   "Nur mit App\n3.59\nApp-preis 2.99*€\n2.99*\n-16%**\nSONNENDORFER Körndleier\nohne App: je Packung 3.59"
- *
- * We want the price everyone pays, not the app-only price. Penny marks
- * app-exclusive prices with a trailing asterisk ("2.99*"), so the first price
- * WITHOUT an asterisk is the regular one. Keying off the asterisk rather than
- * a preceding "Nur mit App" badge matters: in the third example the badge is
- * followed by the regular price (3.59), so consuming the price after the badge
- * would discard the regular price and report the app price instead.
- */
-export function parseTileText(text: string, imgSrc: string): ScrapedOffer | null {
-  const lines = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  const priceRe = /^(\d+)\.(\d{2})(\*?)$/; // "2.29" or "1.99*" (app-only)
-  const uvpRe = /^UVP\s/i;
-  const pctRe = /^-\d+\s*%\**$/; // "-50%" or "-16%**"
-  const appRe = /^Nur mit App$/i;
-  // Price annotations that repeat a price in prose — never a product name.
-  const annotationRe = /^(App-preis|ohne App)\b/i;
-
-  let price: number | null = null;
-  const nonPriceLines: string[] = [];
-
-  for (const line of lines) {
-    if (appRe.test(line)) continue;
-    if (uvpRe.test(line)) continue;
-    if (pctRe.test(line)) continue;
-    if (annotationRe.test(line)) continue;
-
-    const m = line.match(priceRe);
-    if (m) {
-      const isAppOnlyPrice = m[3] === "*";
-      if (price === null && !isAppOnlyPrice) {
-        price = parseFloat(`${m[1]}.${m[2]}`);
-      }
-      continue;
-    }
-
-    nonPriceLines.push(line);
-  }
-
-  if (price === null || price <= 0) return null;
-
-  const name = nonPriceLines[0] ?? "";
-  if (!name) return null;
-
-  const unitSize = nonPriceLines[1] ?? "";
-
-  // Reject multi-pack tiles (e.g. "je 12 x 1 l") — price would be for the full pack,
-  // not a single unit, which would appear absurdly high to users.
-  if (/\d+\s*[xX×]\s*\d/.test(unitSize)) return null;
-
-  return {
-    name,
-    price,
-    unitSize,
-    imageUrl: imgSrc || undefined,
-  };
+/** ISO-8601 week as Penny writes it: "2026-47". */
+export function isoWeek(isoDate: string): string {
+  const d = new Date(`${isoDate}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); // Thursday decides the year
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
+  const week = Math.ceil(((d.getTime() - yearStart) / 86_400_000 + 1) / 7);
+  return `${d.getUTCFullYear()}-${String(week).padStart(2, "0")}`;
 }
-
-async function scrapeAllOffers(
-  page: import("playwright").Page,
-): Promise<ScrapedOffer[]> {
-  await page.goto(OFFERS_URL, { waitUntil: "domcontentloaded", timeout: 25000 });
-  await sleep(2000);
-  await acceptCookies(page);
-  await sleep(1000);
-
-  // Scroll to trigger lazy-loading
-  const scrollSteps = 8;
-  for (let i = 1; i <= scrollSteps; i++) {
-    const fraction = i / scrollSteps;
-    await page.evaluate((f: number) => {
-      window.scrollTo(0, document.body.scrollHeight * f);
-    }, fraction);
-    await sleep(400);
-  }
-  await sleep(1500);
-
-  const rawTiles = await page.evaluate(() => {
-    const tiles = document.querySelectorAll<HTMLElement>(".offer-tile");
-    return Array.from(tiles).map((tile) => {
-      const img = tile.querySelector<HTMLImageElement>("img");
-      return {
-        text: tile.innerText ?? "",
-        imgSrc: img?.src ?? img?.dataset?.src ?? "",
-      };
-    });
-  });
-
-  const results: ScrapedOffer[] = [];
-  for (const { text, imgSrc } of rawTiles) {
-    const parsed = parseTileText(text, imgSrc);
-    if (parsed) results.push(parsed);
-  }
-  return results;
-}
-
-
 
 export class PennySource implements StoreSource {
   readonly storeSlug = "penny";
 
-  private offersCache: ScrapedOffer[] | null = null;
+  async fetchOffers(): Promise<Offer[]> {
+    const today = berlinDate();
+    const sections = parsePennySections(await fetchText(OFFERS_URL), today);
+    if (sections.length === 0) throw new Error("penny: no flyer sections found — page structure changed");
 
-  private async getOffers(page: import("playwright").Page): Promise<ScrapedOffer[]> {
-    if (this.offersCache) return this.offersCache;
-    console.log("[penny] Scraping weekly offers page...");
-    const offers = await scrapeAllOffers(page);
-    console.log(`[penny] Found ${offers.length} offer tiles`);
-    this.offersCache = offers;
-    return offers;
-  }
-
-  async fetchProduct(
-    _externalId: string,
-    productName: string,
-  ): Promise<RawProductData | null> {
-    const page = await newPage();
-    try {
-      const offers = await this.getOffers(page);
-      const match = bestMatch(productName, offers);
-      if (match) {
-        console.log(`[penny] "${productName}" → offer "${match.name}" @ ${match.price} €`);
-        return {
-          externalId: "",
-          name: match.name,
-          price: match.price,
-          currency: "EUR",
-          unitSize: match.unitSize,
-          imageUrl: match.imageUrl,
-          url: OFFERS_URL,
-          isEstimated: false,
-        };
+    const week = isoWeek(today);
+    const byName = new Map<string, Offer>();
+    for (const section of sections) {
+      const json = await fetchText(`${BASE}/.rest/offers/by-category/${week}/${section}`);
+      const tiles: PennyTile[] = JSON.parse(json).offerTiles ?? [];
+      for (const offer of parsePennyTiles(tiles, saturdayOf(today))) {
+        byName.set(`${offer.name}|${offer.unitText}`, offer);
       }
-
-      // No catalog-search fallback: penny.de has no product search at all
-      // (penny.de/suche returns HTTP 404 and the site has no search form —
-      // Penny's web presence is the weekly flyer). The lookup could never
-      // return a price and only cost ~5s per product.
-      console.warn(`[penny] Not on offer this week: "${productName}"`);
-      return null;
-    } catch (err) {
-      console.error(`[penny] Error: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
-    } finally {
-      await page.context().close();
     }
-  }
-
-  async fetchAll(
-    products: Array<{ externalProductId: string | null; productName: string }>,
-  ): Promise<RawProductData[]> {
-    const page = await newPage();
-    try {
-      const offers = await this.getOffers(page);
-      const results: RawProductData[] = [];
-      for (const product of products) {
-        const match = bestMatch(product.productName, offers);
-        if (match) {
-          console.log(`[penny] "${product.productName}" → "${match.name}" @ ${match.price} €`);
-          results.push({
-            externalId: "",
-            name: match.name,
-            price: match.price,
-            currency: "EUR",
-            unitSize: match.unitSize,
-            imageUrl: match.imageUrl,
-            url: OFFERS_URL,
-            isEstimated: false,
-          });
-        } else {
-          // Not in this week's offers means no price: penny.de has no product
-          // search at all, so there is nowhere else to look.
-          console.warn(`[penny] Not on offer this week: "${product.productName}"`);
-        }
-      }
-      return results;
-    } finally {
-      await page.context().close();
-    }
+    return [...byName.values()];
   }
 }
