@@ -78,4 +78,24 @@ describe("catalog rules", () => {
     const best = bestOffers([offer("MILSANI Schlagsahne", 0.89, "200-g-Becher", "1 kg = 4.45")]);
     expect(best.get("Sahne")?.unitPrice).toBeCloseTo(4.45);
   });
+
+  it.each([
+    ["MEIN BESTES Bäckerbrötchen", 0.19, "Stück", "Brötchen vom Bäcker"],
+    ["Sauerteigbrötchen", 0.39, "je Stück", "Brötchen vom Bäcker"],
+    ["GOLDÄHREN Kaiserbrötchen", 0.69, "4x55-g-Packung", "Brötchen (Aufback)"],
+    ["K-CLASSIC Unsere Feinen Weizenbrötchen", 0.79, "je 6 St. = 360-g-Packg.", "Brötchen (Aufback)"],
+    ["MEIN BESTES Krustenbrot", 1.65, "1000-g-Stück", "Brot vom Bäcker"],
+    ["Kastenweißbrot", 1.79, "je 750-g-Stück", "Brot vom Bäcker"],
+  ])("files %s (%s) under %s only", (name, price, unit, product) => {
+    expect(matched(offer(name, price, unit))).toEqual([product]);
+  });
+
+  it.each([
+    ["GOLDÄHREN Landbrot", 1.59, "1.000-g-Packung"], // packaged, not from the bakery
+    ["MEIN BESTES Walnussbrot", 1.59, "380-g-Stück"],
+    ["BARILLA Spaghetti oder Fusilli Protein+", 1.99, "je 400-g-Packg."],
+    ["MILSANI Milchreis", 0.39, "200-g-Becher"], // dessert, not rice
+  ])("keeps %s out of the bakery and pasta products", (name, price, unit) => {
+    expect(matched(offer(name, price, unit))).toEqual([]);
+  });
 });
