@@ -256,4 +256,110 @@ UPDATE products SET image_url = NULL;
 UPDATE stores SET is_active = false WHERE slug = 'lidl';
 `,
   },
+  {
+    name: "0005_regular_prices_and_store_offers.sql",
+    sql: `
+-- Migration 0005: everyday prices next to flyer offers, and a browsable list
+-- of everything the stores publish.
+--
+-- prices.is_offer: Aldi Nord publishes its whole range with shelf prices, so a
+-- product's price can now be the everyday price (false) rather than this
+-- week's flyer offer (true). Existing rows are all flyer offers.
+--
+-- store_offers: every weekly offer from every store plus Aldi Nord's range,
+-- replaced per store on each pipeline run, so people can browse all of them,
+-- not only the products in our comparison catalog.
+
+ALTER TABLE prices ADD COLUMN IF NOT EXISTS is_offer boolean NOT NULL DEFAULT true;
+
+CREATE TABLE IF NOT EXISTS store_offers (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id     uuid NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  name         varchar(300) NOT NULL,
+  description  text,
+  price_cents  integer NOT NULL,
+  unit_text    varchar(100) NOT NULL,
+  base_text    varchar(100),
+  image_url    varchar(500),
+  url          varchar(500),
+  is_offer     boolean NOT NULL DEFAULT true,
+  valid_until  date NOT NULL,
+  fetched_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_offers_store ON store_offers (store_id);
+CREATE INDEX IF NOT EXISTS idx_store_offers_valid ON store_offers (valid_until);
+`,
+  },
+  {
+    name: "0006_offer_reviews.sql",
+    sql: `
+-- Migration 0006: review queue for matches and prices
+--
+-- offer_reviews: things a person should look at before they affect the site.
+--   kind 'price' — the pipeline held back a match because its unit price is
+--     outside the product's plausible range or jumped more than 3x.
+--     Approving it lets that exact offer and price through.
+--   kind 'match' — the AI classifier disagrees with the catalog rules: it
+--     thinks an offer is a product the rules miss, or doubts a rule match.
+--     Approving / rejecting decides "offer name X is / is not product P".
+--   key makes each question unique, so a decided item is never asked again.
+--
+-- offer_classifications: the AI's answer per offer name, so each name is
+-- only sent to the model once.
+
+CREATE TABLE IF NOT EXISTS offer_reviews (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key              varchar(600) NOT NULL UNIQUE,
+  kind             varchar(10)  NOT NULL,
+  store_id         uuid NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  product_id       uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  offer_name       varchar(300) NOT NULL,
+  unit_text        varchar(100) NOT NULL,
+  price_cents      integer NOT NULL,
+  unit_price_cents integer,
+  image_url        varchar(500),
+  url              varchar(500),
+  reason           text NOT NULL,
+  status           varchar(10)  NOT NULL DEFAULT 'pending',
+  created_at       timestamptz  NOT NULL DEFAULT now(),
+  decided_at       timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_offer_reviews_status ON offer_reviews (status);
+
+CREATE TABLE IF NOT EXISTS offer_classifications (
+  name_key     varchar(300) PRIMARY KEY,
+  product_name varchar(200),
+  confidence   real,
+  model        varchar(50) NOT NULL,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+`,
+  },
+  {
+    name: "0007_bakery_products.sql",
+    sql: `
+-- Migration 0007: bread and rolls from the in-store bakery
+--
+-- The catalog only had packaged bread (Toastbrot, Vollkornbrot) and bake-off
+-- rolls. Aldi Nord's range lists its in-store bakery with everyday prices
+-- (Bäckerbrötchen, Krustenbrot) and Kaufland often has bakery offers, so they
+-- become their own products. The production seed only runs on an empty
+-- database, so new catalog entries are introduced here. Idempotent.
+
+INSERT INTO products (name_de, name_en, category_id, default_unit)
+SELECT v.de, v.en, c.id, v.unit
+  FROM (VALUES ('Brot vom Bäcker', 'Bakery Bread', 'g'),
+               ('Brötchen vom Bäcker', 'Bakery Rolls', 'Stück')) AS v(de, en, unit)
+  JOIN categories c ON c.slug = 'bread'
+ WHERE NOT EXISTS (SELECT 1 FROM products p WHERE p.name_de = v.de);
+
+INSERT INTO product_matches (product_id, store_id, match_confidence, is_verified)
+SELECT p.id, s.id, 1.00, false
+  FROM products p
+ CROSS JOIN stores s
+ WHERE p.name_de IN ('Brot vom Bäcker', 'Brötchen vom Bäcker')
+   AND s.is_active = true
+ON CONFLICT ON CONSTRAINT uq_product_store DO NOTHING;
+`,
+  },
 ];

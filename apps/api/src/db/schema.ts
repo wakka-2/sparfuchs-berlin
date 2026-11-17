@@ -8,6 +8,7 @@ import {
   text,
   numeric,
   date,
+  real,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -148,6 +149,8 @@ export const prices = pgTable(
     unitPriceCents: integer("unit_price_cents").notNull(),
     currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
     isEstimated: boolean("is_estimated").notNull().default(false),
+    /** Flyer offer (true) or the store's everyday shelf price (false) */
+    isOffer: boolean("is_offer").notNull().default(true),
     /** Last day the offer is valid (Berlin calendar day). Null = expired legacy row. */
     validUntil: date("valid_until"),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
@@ -166,6 +169,71 @@ export const pricesRelations = relations(prices, ({ one }) => ({
     references: [productMatches.id],
   }),
 }));
+
+// ============================================================
+// store_offers — everything a store currently sells online, for browsing
+// (weekly offers from all stores + Aldi Nord's everyday range). Replaced per
+// store on every pipeline run; not matched to catalog products.
+// ============================================================
+export const storeOffers = pgTable(
+  "store_offers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id")
+      .notNull()
+      .references(() => stores.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 300 }).notNull(),
+    description: text("description"),
+    priceCents: integer("price_cents").notNull(),
+    unitText: varchar("unit_text", { length: 100 }).notNull(),
+    baseText: varchar("base_text", { length: 100 }),
+    imageUrl: varchar("image_url", { length: 500 }),
+    url: varchar("url", { length: 500 }),
+    isOffer: boolean("is_offer").notNull().default(true),
+    validUntil: date("valid_until").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_store_offers_store").on(table.storeId),
+    index("idx_store_offers_valid").on(table.validUntil),
+  ],
+);
+
+// ============================================================
+// offer_reviews — the review queue (see migration 0006)
+// ============================================================
+export const offerReviews = pgTable(
+  "offer_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** "match|<name>|<productId>" or "price|<name>|<productId>|<cents>" */
+    key: varchar("key", { length: 600 }).notNull().unique(),
+    kind: varchar("kind", { length: 10 }).$type<"match" | "price">().notNull(),
+    storeId: uuid("store_id").notNull().references(() => stores.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    offerName: varchar("offer_name", { length: 300 }).notNull(),
+    unitText: varchar("unit_text", { length: 100 }).notNull(),
+    priceCents: integer("price_cents").notNull(),
+    unitPriceCents: integer("unit_price_cents"),
+    imageUrl: varchar("image_url", { length: 500 }),
+    url: varchar("url", { length: 500 }),
+    reason: text("reason").notNull(),
+    status: varchar("status", { length: 10 }).$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (table) => [index("idx_offer_reviews_status").on(table.status)],
+);
+
+/** The AI classifier's answer per offer name, so each name is asked once. */
+export const offerClassifications = pgTable("offer_classifications", {
+  nameKey: varchar("name_key", { length: 300 }).primaryKey(),
+  /** Catalog product (products.name_de) or null = none of them */
+  productName: varchar("product_name", { length: 200 }),
+  confidence: real("confidence"),
+  model: varchar("model", { length: 50 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ============================================================
 // price_history — append-only changelog

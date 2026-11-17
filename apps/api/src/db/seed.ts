@@ -31,6 +31,8 @@ const productDefs: ProductDef[] = [
   { de: "Toastbrot",                 en: "Toast Bread",             cat: "bread",      unit: "g"     },
   { de: "Vollkornbrot",              en: "Whole Grain Bread",       cat: "bread",      unit: "g"     },
   { de: "Brötchen (Aufback)",        en: "Bread Rolls (Bake-off)",  cat: "bread",      unit: "Stück" },
+  { de: "Brot vom Bäcker",           en: "Bakery Bread",            cat: "bread",      unit: "g"     },
+  { de: "Brötchen vom Bäcker",       en: "Bakery Rolls",            cat: "bread",      unit: "Stück" },
   // Meat & Deli (4)
   { de: "Hähnchenbrust",             en: "Chicken Breast",          cat: "meat",       unit: "g"     },
   { de: "Hackfleisch gemischt",      en: "Mixed Ground Meat",       cat: "meat",       unit: "g"     },

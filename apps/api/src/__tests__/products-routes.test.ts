@@ -53,6 +53,7 @@ const SAMPLE_PRODUCT = {
       store_image_url: null,
       is_cheapest: false,
       is_estimated: false,
+      is_offer: true,
     },
     {
       store_slug: "lidl",
@@ -68,6 +69,7 @@ const SAMPLE_PRODUCT = {
       store_image_url: null,
       is_cheapest: true,
       is_estimated: false,
+      is_offer: true,
     },
   ],
   savings: {

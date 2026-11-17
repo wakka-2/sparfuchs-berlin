@@ -8,6 +8,7 @@ describe("unitPrice", () => {
     expect(unitPrice(o(1.59, "je 250 g", "(1 kg = 6.36)"), "kg")).toBeCloseTo(6.36);
     expect(unitPrice(o(5.79, "je 500-g-Pckg.", "(1 kg = 11,58 €)"), "kg")).toBeCloseTo(11.58);
     expect(unitPrice(o(0.89, "1,5-L-Flasche", "1 Liter = 0.59"), "L")).toBeCloseTo(0.59);
+    expect(unitPrice(o(0.85, "0,5-L-Packung", "1 l = 1.70"), "L")).toBeCloseTo(1.7); // Aldi's lowercase l
   });
 
   it("quotes the dearer end of a base-price range", () => {
@@ -36,6 +37,7 @@ describe("unitPrice", () => {
     expect(unitPrice(o(9.69, "32x200-Blatt-Packung"), "Stück")).toBeCloseTo(0.3028, 3);
     expect(unitPrice(o(4.99, "je 20 WL-Fl.", "(1 WL = 0,25 €)"), "Stück")).toBeCloseTo(0.25);
     expect(unitPrice(o(7.99, "je", "(pro Anwendung = 0.08)"), "Stück")).toBeCloseTo(0.08);
+    expect(unitPrice(o(2.49, "10-Stück-Packung"), "Stück")).toBeCloseTo(0.249);
     // a weight with no piece count is a pack, not a piece
     expect(unitPrice(o(1.49, "250-g-Packung"), "Stück")).toBeNull();
   });

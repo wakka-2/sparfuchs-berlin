@@ -32,6 +32,8 @@ export interface StorePrice {
   valid_until: string | null;
   is_cheapest: boolean;
   is_estimated: boolean;
+  /** Flyer offer (true) or the store's everyday shelf price (false) */
+  is_offer: boolean;
   external_name?: string | null;
   external_url?: string | null;
   ean?: string | null;
@@ -154,4 +156,66 @@ export async function calculateBasket(items: Array<{ product_id: string; quantit
   });
 
   return res.data;
+}
+
+/** Anything a store publishes: a weekly offer or an Aldi everyday price. */
+export interface StoreOffer {
+  id: string;
+  store_slug: string;
+  store_name: string;
+  store_color: string | null;
+  name: string;
+  price_cents: number;
+  price_formatted: string;
+  unit_text: string;
+  base_text: string | null;
+  image_url: string | null;
+  url: string | null;
+  is_offer: boolean;
+  valid_until: string;
+}
+
+export type OfferType = "offer" | "regular";
+
+export async function fetchOffers(params: { type: OfferType; store?: string; q?: string; page?: number }) {
+  const sp = new URLSearchParams({ type: params.type });
+  if (params.store) sp.set("store", params.store);
+  if (params.q) sp.set("q", params.q);
+  if (params.page) sp.set("page", String(params.page));
+  const res = await apiFetch<{
+    success: true;
+    data: { offers: StoreOffer[]; store_counts: Record<string, number> };
+    meta: { pagination: Pagination };
+  }>(`/offers?${sp}`);
+  return { ...res.data, pagination: res.meta.pagination };
+}
+
+// ── Review queue (site owner only, token-protected) ──
+
+export interface ReviewItem {
+  id: string;
+  kind: "match" | "price";
+  status: "pending" | "approved" | "rejected";
+  store_name: string;
+  store_color: string | null;
+  product_name: string;
+  offer_name: string;
+  unit_text: string;
+  price_formatted: string;
+  unit_price_cents: number | null;
+  image_url: string | null;
+  url: string | null;
+  reason: string;
+  created_at: string;
+}
+
+const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+export async function fetchReviews(token: string) {
+  const res = await apiFetch<{ success: true; data: { reviews: ReviewItem[] } }>("/admin/reviews", { headers: bearer(token) });
+  return res.data.reviews;
+}
+
+export async function decideReview(token: string, id: string, status: "approved" | "rejected") {
+  await apiFetch(`/admin/reviews/${id}`, { method: "POST", headers: bearer(token), body: JSON.stringify({ status }) });
 }

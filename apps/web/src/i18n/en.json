@@ -18,23 +18,26 @@
     "home": "Home",
     "back": "Back",
     "mainNav": "Main navigation",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "offers": "Offers"
   },
   "home": {
     "title": "Shop cheaper this week",
-    "subtitle": "This week's offers from REWE, Penny, Aldi Nord and Kaufland — compared per kilo, litre or piece.",
+    "subtitle": "Weekly offers from REWE, Penny, Aldi Nord and Kaufland plus Aldi's everyday prices — compared per kilo, litre or piece.",
     "noProducts": "No products yet.",
     "weekBadge": "Offers valid until {{date}}",
     "weekBadgeNoDate": "Current weekly offers",
-    "statProducts": "Products on offer",
+    "statProducts": "Products with a price",
     "statStores": "Stores compared",
     "comparing": "Comparing:",
     "topSavings": "Biggest savings",
     "topSavingsHint": "per unit, cheapest vs. dearest store",
-    "onOfferCount_one": "{{count}} on offer",
-    "onOfferCount_other": "{{count}} on offer",
-    "notOnOffer": "Not on offer this week",
-    "notOnOfferHint": "No store has an offer for these right now. We never show old or estimated prices."
+    "onOfferCount_one": "{{count}} with a price",
+    "onOfferCount_other": "{{count}} with a price",
+    "notOnOffer": "No price this week",
+    "notOnOfferHint": "No store has these on offer right now and Aldi Nord doesn't list them online. We never show old or estimated prices.",
+    "browseTitle": "Browse all offers",
+    "browseHint": "Every weekly offer from the four stores and Aldi's full range — searchable."
   },
   "category": {
     "noProducts": "No products in this category.",
@@ -55,13 +58,15 @@
     "addNamedToList": "Add {{name}} to list",
     "removeFromList": "Remove {{name}} from list",
     "validUntil": "valid until {{date}}",
-    "bestThisWeek": "Best price this week",
+    "bestThisWeek": "Best price today",
     "savingVsDearest": "{{pct}}% cheaper than the dearest store",
     "noOfferTitle": "Not on offer this week",
     "noOfferHint": "As soon as a store has this product in its flyer, it shows up here.",
     "compareHint": "Sorted by price per unit, so different pack sizes are comparable.",
     "cheapest": "Cheapest",
-    "viewOffer": "View offer at {{store}}"
+    "viewOffer": "View offer at {{store}}",
+    "regularPrice": "Everyday price",
+    "offerUntil": "Offer until {{date}}"
   },
   "basket": {
     "title": "Shopping List",
@@ -104,15 +109,15 @@
     "noData": "No price history available yet."
   },
   "footer": {
-    "disclaimer": "Prices from this week's offers on rewe.de, penny.de, aldi-nord.de and kaufland.de. No guarantee — in-store prices may differ.",
+    "disclaimer": "Prices from this week's offers on rewe.de, penny.de, aldi-nord.de and kaufland.de and Aldi Nord's range. No guarantee — in-store prices may differ.",
     "impressum": "Legal Notice",
     "privacy": "Privacy Policy"
   },
   "about": {
     "title": "About Sparfuchs Berlin",
-    "intro": "Sparfuchs Berlin compares the weekly offers of the big supermarkets. An offer is only matched to a product when it really is that product, and compared per kilo, litre or piece.",
+    "intro": "Sparfuchs Berlin compares the big supermarkets' weekly offers and Aldi Nord's everyday prices. An offer is only matched to a product when it really is that product, and everything is compared per kilo, litre or piece.",
     "dataSources": "Data Sources",
-    "dataSourcesText": "Offers come from rewe.de, penny.de, aldi-nord.de and kaufland.de and are fetched daily at 05:00. Expired offers disappear automatically.",
+    "dataSourcesText": "Offers come from rewe.de, penny.de, aldi-nord.de and kaufland.de, everyday prices from aldi-nord.de's online range. Everything is fetched daily at 05:00; expired offers disappear automatically. REWE, Penny and Kaufland only publish their weekly offers online, so everyday prices are from Aldi Nord only for now.",
     "disclaimer": "Disclaimer",
     "disclaimerText": "All prices without guarantee. Actual in-store prices may differ. This is not an official service of the stores named.",
     "feedback": "Feedback",
@@ -126,5 +131,38 @@
     "title": "404",
     "message": "Page not found.",
     "goHome": "Go to homepage"
+  },
+  "offers": {
+    "title": "All offers",
+    "subtitle": "Everything REWE, Penny, Aldi Nord and Kaufland have on offer this week — plus Aldi's full range at everyday prices.",
+    "typeLabel": "Kind of price",
+    "tabOffers": "Weekly offers",
+    "tabRegular": "Aldi range",
+    "searchLabel": "Search offers",
+    "searchPlaceholder": "Search, e.g. eggs, coffee, cheese",
+    "countOffers_one": "{{count}} offer",
+    "countOffers_other": "{{count}} offers",
+    "countRegular_one": "{{count}} product",
+    "countRegular_other": "{{count}} products",
+    "loadMore": "Load more ({{count}} left)",
+    "noMatch": "Nothing found for “{{q}}”.",
+    "empty": "No offers right now.",
+    "openAt": "View {{name}} at {{store}} (opens new window)"
+  },
+  "review": {
+    "title": "Review",
+    "subtitle": "Matches the AI doubts and prices the pipeline held back. Decisions apply from the next daily run.",
+    "signInHint": "For the site owner only.",
+    "tokenLabel": "Review key",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "empty": "Nothing to review.",
+    "count_one": "{{count}} open",
+    "count_other": "{{count}} open",
+    "questionMatch": "Is this “{{product}}”?",
+    "questionPrice": "Is this price right for “{{product}}”?",
+    "approve": "Yes",
+    "reject": "No",
+    "open": "View in shop"
   }
 }

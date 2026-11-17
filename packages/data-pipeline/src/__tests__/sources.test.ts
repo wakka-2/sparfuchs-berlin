@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAldi } from "../sources/aldi.js";
+import { parseAldi, parseAldiCategory } from "../sources/aldi.js";
 import { parseKaufland } from "../sources/kaufland.js";
 import { parsePennySections, parsePennyTiles, isoWeek } from "../sources/penny.js";
 import { parseReweTiles } from "../sources/rewe.js";
@@ -37,6 +37,25 @@ describe("Aldi Nord", () => {
 
   it("fails loudly when the page structure changes", () => {
     expect(() => parseAldi("<html></html>", now)).toThrow(/structure changed/);
+  });
+
+  it("reads the everyday range as regular prices that expire tomorrow", () => {
+    const eggs = {
+      objectID: "42", name: "Eier aus Bodenhaltung", brandName: "LANDFREUDE", salesUnit: "10-Stück-Packung",
+      currentPrice: { priceValue: 2.49, validFrom: t - 300 * 86400, validUntil: t + 900 * 86400 },
+    };
+    const apiData = JSON.stringify([
+      ["PRODUCT_MGNL_CATEGORY_CHILDREN_GET", { res: [{ reference: { path: "/sortiment/milchprodukte" } }, { reference: { path: "/sortiment/gutscheine-guthabenkarten" } }] }],
+    ]);
+    const props = { apiData, algoliaState: { initialResults: { idx: { results: [{ hits: [eggs] }] } } } };
+    const html = `<script id="__NEXT_DATA__" type="application/json">${JSON.stringify({ props: { pageProps: props } })}</script>`;
+    const { products, children } = parseAldiCategory(html, now);
+    expect(children).toEqual(["/sortiment/milchprodukte"]);
+    expect(products[0].offer).toMatchObject({ name: "LANDFREUDE Eier aus Bodenhaltung", price: 2.49, regular: true, validUntil: "2026-11-18" });
+  });
+
+  it("marks weekly offers as not regular", () => {
+    expect(parseAldi(page([product(t - 86400, t + 86400)]), now)[0].regular).toBe(false);
   });
 });
 

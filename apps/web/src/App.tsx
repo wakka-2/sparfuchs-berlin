@@ -5,6 +5,8 @@ import { HomePage } from "./pages/HomePage";
 import { CategoryPage } from "./pages/CategoryPage";
 import { ProductPage } from "./pages/ProductPage";
 import { SearchPage } from "./pages/SearchPage";
+import { OffersPage } from "./pages/OffersPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { AboutPage } from "./pages/AboutPage";
 import { ImpressumPage } from "./pages/ImpressumPage";
@@ -35,6 +37,7 @@ function useListCount() {
 
 const NAV: Array<{ to: string; icon: IconName; key: string }> = [
   { to: "/", icon: "tag", key: "common.prices" },
+  { to: "/angebote", icon: "sparkles", key: "common.offers" },
   { to: "/liste", icon: "list", key: "common.list" },
   { to: "/ueber-uns", icon: "info", key: "common.info" },
 ];
@@ -75,7 +78,7 @@ function BottomNav() {
       aria-label={t("common.mainNav")}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
-      <ul className="grid grid-cols-3">
+      <ul className="grid grid-cols-4">
         {NAV.map((n) => (
           <li key={n.to}>
             <NavLink
@@ -143,6 +146,8 @@ export function App() {
             <Route path="/kategorie/:slug" element={<CategoryPage />} />
             <Route path="/produkt/:id" element={<ProductPage />} />
             <Route path="/suche" element={<SearchPage />} />
+            <Route path="/angebote" element={<OffersPage />} />
+            <Route path="/pruefen" element={<ReviewPage />} />
             <Route path="/liste" element={<ShoppingListPage />} />
             <Route path="/ueber-uns" element={<AboutPage />} />
             <Route path="/impressum" element={<ImpressumPage />} />

@@ -1,18 +1,18 @@
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { Product } from "../lib/api";
-import { formatValidUntil } from "../lib/format";
 import { AddToListButton } from "./AddToListButton";
 import { StoreBadge } from "./StoreBadge";
 import { Icon } from "./Icon";
 import { categoryIcon } from "../lib/categoryIcon";
+import { PriceKind } from "./PriceKind";
 
 /**
  * One catalog product. The headline is the best price *per kg / L / piece*
  * this week — pack sizes differ between stores, so pack prices alone mislead.
  */
 export function ProductCard({ product }: { product: Product }) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const [best, ...others] = product.prices; // API sorts by unit price
   const image = best?.store_image_url ?? product.image_url;
   const saving = product.savings && product.savings.percentage >= 5 ? Math.round(product.savings.percentage) : null;
@@ -96,12 +96,7 @@ export function ProductCard({ product }: { product: Product }) {
           </ul>
         )}
 
-        {best.valid_until && (
-          <p className="mt-auto flex items-center gap-1.5 pt-1 text-xs text-ink-subtle">
-            <Icon name="calendar" className="h-3.5 w-3.5" />
-            {t("product.validUntil", { date: formatValidUntil(best.valid_until, i18n.language) })}
-          </p>
-        )}
+        <PriceKind price={best} lang={i18n.language} className="mt-auto pt-1" />
       </div>
     </article>
   );
