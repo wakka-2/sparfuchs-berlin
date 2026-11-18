@@ -154,7 +154,15 @@
     "loadMore": "Load more ({{count}} left)",
     "noMatch": "Nothing found for “{{q}}”.",
     "empty": "No offers right now.",
-    "openAt": "View {{name}} at {{store}} (opens new window)"
+    "openAt": "View {{name}} at {{store}} (opens new window)",
+    "categoryLabel": "Categories",
+    "storeLabel": "Stores",
+    "allCategories": "All categories",
+    "sortLabel": "Sort:",
+    "sort_relevance": "Recommended",
+    "sort_unit_price": "Price per kg/L",
+    "sort_price": "Price",
+    "alsoAt": "also at {{store}}: {{price}}"
   },
   "review": {
     "title": "Review",
@@ -205,5 +213,19 @@
     "decline": "Decline",
     "accept": "Accept",
     "settings": "Cookie settings"
+  },
+  "browse": {
+    "obst-gemuese": "Fruit & veg",
+    "milch-kaese": "Dairy & eggs",
+    "fleisch-fisch": "Meat & fish",
+    "brot-aufstriche": "Bread & breakfast",
+    "vorrat": "Pantry",
+    "tiefkuehl-fertig": "Frozen & ready meals",
+    "suesses-snacks": "Sweets & snacks",
+    "getraenke": "Drinks",
+    "alkohol": "Beer, wine & spirits",
+    "drogerie": "Personal care & baby",
+    "haushalt": "Household & pets",
+    "sonstiges": "Other"
   }
 }

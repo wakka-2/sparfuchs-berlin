@@ -154,7 +154,15 @@
     "loadMore": "Mehr laden ({{count}} weitere)",
     "noMatch": "Nichts gefunden für „{{q}}“.",
     "empty": "Gerade keine Angebote.",
-    "openAt": "{{name}} bei {{store}} ansehen (öffnet neues Fenster)"
+    "openAt": "{{name}} bei {{store}} ansehen (öffnet neues Fenster)",
+    "categoryLabel": "Kategorien",
+    "storeLabel": "Märkte",
+    "allCategories": "Alle Kategorien",
+    "sortLabel": "Sortieren:",
+    "sort_relevance": "Empfohlen",
+    "sort_unit_price": "Preis pro kg/L",
+    "sort_price": "Preis",
+    "alsoAt": "auch bei {{store}}: {{price}}"
   },
   "review": {
     "title": "Prüfen",
@@ -205,5 +213,19 @@
     "decline": "Ablehnen",
     "accept": "Akzeptieren",
     "settings": "Cookie-Einstellungen"
+  },
+  "browse": {
+    "obst-gemuese": "Obst & Gemüse",
+    "milch-kaese": "Milch, Käse & Eier",
+    "fleisch-fisch": "Fleisch & Fisch",
+    "brot-aufstriche": "Brot & Frühstück",
+    "vorrat": "Vorrat & Kochen",
+    "tiefkuehl-fertig": "Tiefkühl & Fertig",
+    "suesses-snacks": "Süßes & Snacks",
+    "getraenke": "Getränke",
+    "alkohol": "Bier, Wein & Spirituosen",
+    "drogerie": "Drogerie & Baby",
+    "haushalt": "Haushalt & Tier",
+    "sonstiges": "Sonstiges"
   }
 }
