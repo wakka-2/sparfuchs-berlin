@@ -76,6 +76,40 @@ const productDefs: ProductDef[] = [
   // Körndleier"), so husbandry/pack-size qualifiers make the product
   // unmatchable. See migration 0003_consolidate_eggs.sql.
   { de: "Eier",                      en: "Eggs",                    cat: "eggs",       unit: "Stück" },
+  // Batch 2 (2026-11-18)
+  { de: "Emmentaler", en: "Emmentaler", cat: "dairy", unit: "g" },
+  { de: "Feta", en: "Feta", cat: "dairy", unit: "g" },
+  { de: "Skyr", en: "Skyr", cat: "dairy", unit: "g" },
+  { de: "Margarine", en: "Margarine", cat: "dairy", unit: "g" },
+  { de: "Camembert / Brie", en: "Camembert / Brie", cat: "dairy", unit: "g" },
+  { de: "Bratwurst", en: "Bratwurst", cat: "meat", unit: "g" },
+  { de: "Wiener Würstchen", en: "Wiener Sausages", cat: "meat", unit: "g" },
+  { de: "Putenbrust", en: "Turkey Breast", cat: "meat", unit: "g" },
+  { de: "Räucherlachs", en: "Smoked Salmon", cat: "meat", unit: "g" },
+  { de: "Clementinen / Mandarinen", en: "Clementines / Mandarins", cat: "fruits", unit: "g" },
+  { de: "Orangen", en: "Oranges", cat: "fruits", unit: "g" },
+  { de: "Birnen", en: "Pears", cat: "fruits", unit: "g" },
+  { de: "Kiwi", en: "Kiwi", cat: "fruits", unit: "Stück" },
+  { de: "Champignons", en: "Mushrooms", cat: "vegetables", unit: "g" },
+  { de: "Nudeln (Penne / Fusilli)", en: "Short Pasta", cat: "pantry", unit: "g" },
+  { de: "Mayonnaise", en: "Mayonnaise", cat: "pantry", unit: "ml" },
+  { de: "Senf", en: "Mustard", cat: "pantry", unit: "ml" },
+  { de: "Honig", en: "Honey", cat: "pantry", unit: "g" },
+  { de: "Nuss-Nougat-Creme", en: "Hazelnut Spread", cat: "pantry", unit: "g" },
+  { de: "Konfitüre", en: "Jam", cat: "pantry", unit: "g" },
+  { de: "Cola", en: "Cola", cat: "beverages", unit: "ml" },
+  { de: "Limonade", en: "Lemonade", cat: "beverages", unit: "ml" },
+  { de: "Pils", en: "Pils", cat: "beverages", unit: "ml" },
+  { de: "Kaffeekapseln", en: "Coffee Capsules", cat: "beverages", unit: "Stück" },
+  { de: "Schokolade (Tafel)", en: "Chocolate Bar", cat: "sweets", unit: "g" },
+  { de: "Gummibärchen / Fruchtgummi", en: "Gummy Sweets", cat: "sweets", unit: "g" },
+  { de: "Chips", en: "Crisps", cat: "sweets", unit: "g" },
+  { de: "Eiscreme", en: "Ice Cream", cat: "frozen", unit: "ml" },
+  { de: "Zahnpasta", en: "Toothpaste", cat: "drugstore", unit: "ml" },
+  { de: "Duschgel", en: "Shower Gel", cat: "drugstore", unit: "ml" },
+  { de: "Shampoo", en: "Shampoo", cat: "drugstore", unit: "ml" },
+  { de: "Weichspüler", en: "Fabric Softener", cat: "household", unit: "Stück" },
+  { de: "Geschirrspültabs", en: "Dishwasher Tabs", cat: "household", unit: "Stück" },
   // Household (4)
   { de: "Spülmittel",                en: "Dish Soap",               cat: "household",  unit: "ml"    },
   { de: "Toilettenpapier",           en: "Toilet Paper",            cat: "household",  unit: "Stück" },
@@ -115,7 +149,9 @@ export async function seed() {
       ('Vorratskammer',    'Pantry',         'pantry',     '🫙', 7),
       ('Tiefkühl',         'Frozen',         'frozen',     '🧊', 8),
       ('Eier',             'Eggs',           'eggs',       '🥚', 9),
-      ('Haushalt',         'Household',      'household',  '🧹', 10)
+      ('Haushalt',         'Household',      'household',  '🧹', 10),
+      ('Süßes & Snacks',   'Sweets & Snacks', 'sweets',     '🍫', 11),
+      ('Drogerie',         'Drugstore',      'drugstore',  '🧴', 12)
     ON CONFLICT (slug) DO UPDATE SET name_de = EXCLUDED.name_de
     RETURNING id, slug
   `;

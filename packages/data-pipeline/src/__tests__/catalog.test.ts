@@ -12,7 +12,6 @@ describe("catalog rules", () => {
   // Real offers the old fuzzy matcher filed under the wrong product.
   it.each([
     ["ESMARA® Damen-Spaghettiträgerhemden", 7.99, "je Stück"],
-    ["Zentis Erdbeer Konfitüre extra", 2.49, "je 335-g-Glas"],
     ["K-CLASSIC Tomatenmark", 2.31, "je 200-g-Tube"],
     ["Karotten-Krüstchen", 0.33, "je Stück"],
     ["K-WINTER EDITION Marzipankartoffeln", 1.19, "je 125-g-Packg."],
@@ -97,5 +96,31 @@ describe("catalog rules", () => {
     ["MILSANI Milchreis", 0.39, "200-g-Becher"], // dessert, not rice
   ])("keeps %s out of the bakery and pasta products", (name, price, unit) => {
     expect(matched(offer(name, price, unit))).toEqual([]);
+  });
+
+  it("files jam under Konfitüre, not under a staple it mentions (Zucker, Erdbeeren)", () => {
+    expect(matched(offer("Zentis Erdbeer Konfitüre extra", 2.49, "je 335-g-Glas"))).toEqual(["Konfitüre"]);
+  });
+
+  it.each([
+    ["FELIX Gemischte Vielfalt in Gelee", 2.94, "48x85-g-Packung"],
+    ["LANGNESE Bienenhonig", 3.49, "je 500-g-Glas"],
+    ["MILSANI Back-Camembert", 2.99, "350-g-Packung"],
+    ["BERIDA Graved Lachs", 3.99, "je 200 g"],
+    ["BACK FAMILY Schokoladenstreusel", 2.49, "400-g-Packung"],
+    ["MILKA Weihnachtsmischung", 4.99, "je 210-g-Packg."],
+    ["BERIDA Fish & Chips", 5.99, "je 1.000 g"],
+    ["LENOR Voll- oder Colorwaschmittel XXL", 9.99, "je"],
+    ["CRAZY WOLF Energy Drink oder Strong Cola", 0.35, "je 0,33-l-Dose"],
+    ["MÜHLENHOF Delikatess Hähnchen-Käse-Wiener", 3.99, "je 600 g"],
+  ])("batch 2: keeps %s out of the wrong product", (name, price, unit) => {
+    const wrong = ["Konfitüre", "Eiscreme", "Camembert / Brie", "Räucherlachs", "Schokolade (Tafel)", "Chips", "Weichspüler", "Cola", "Wiener Würstchen"];
+    expect(matched(offer(name, price, unit)).filter((p) => wrong.includes(p))).toEqual([]);
+  });
+
+  it("batch 2: files the real thing", () => {
+    expect(matched(offer("LANGNESE Bienenhonig", 3.49, "je 500-g-Glas"))).toContain("Honig");
+    expect(matched(offer("ALMARE Norwegischer Räucherlachs", 4.29, "200-g-Packung"))).toContain("Räucherlachs");
+    expect(matched(offer("LANGNESE Cremissimo", 2.39, "je 900-ml-Packg."))).toContain("Eiscreme");
   });
 });
