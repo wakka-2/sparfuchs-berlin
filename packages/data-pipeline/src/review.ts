@@ -6,12 +6,17 @@ import Anthropic from "@anthropic-ai/sdk";
 import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "./db.js";
 import type { MatchDecisions } from "./catalog.js";
-import { classifyNames, matchReviews, MODEL, type Label } from "./classify.js";
+import { classifyNames, matchReviews, MODEL, MIN_CONFIDENCE, type Label } from "./classify.js";
+import { ruleMatches } from "./catalog.js";
 import type { Offer } from "./types.js";
 
 const toCents = (euros: number) => Math.round(euros * 100);
-/** First run sees ~2,500 names; spread them over a few days to bound one run's cost. */
-const MAX_NEW_NAMES_PER_RUN = 600;
+/**
+ * New names sent to the AI per run (2 batches by default, ≈ 0,10–0,15 $).
+ * The first pass over ~2,500 names then spreads over a few days; raise
+ * AI_MAX_NAMES to go faster.
+ */
+const MAX_NEW_NAMES_PER_RUN = Math.max(0, Number(process.env.AI_MAX_NAMES ?? 160)) || 160;
 
 export const priceKey = (name: string, productId: string, cents: number) =>
   `price|${name.toLowerCase().slice(0, 300)}|${productId}|${cents}`;
@@ -105,13 +110,20 @@ export async function suggestMatchReviews(offersByStore: Map<string, Offer[]>): 
 
   const unseen = keys.filter((k) => !known.has(k)).slice(0, MAX_NEW_NAMES_PER_RUN).map((k) => byKey.get(k)!);
   if (unseen.length > 0) {
-    const fresh = await classifyNames(new Anthropic(), unseen);
-    const rows = [...fresh].map(([nameKey, l]) => ({ nameKey, productName: l.product, confidence: l.confidence, model: MODEL }));
-    for (let i = 0; i < rows.length; i += 500) {
-      await db.insert(schema.offerClassifications).values(rows.slice(i, i + 500)).onConflictDoNothing();
+    let saved = 0;
+    try {
+      await classifyNames(new Anthropic(), unseen, async (batch) => {
+        const rows = [...batch].map(([nameKey, l]) => ({ nameKey, productName: l.product, confidence: l.confidence, model: MODEL }));
+        if (rows.length) await db.insert(schema.offerClassifications).values(rows).onConflictDoNothing();
+        for (const [k, l] of batch) known.set(k, l);
+        saved += rows.length;
+      });
+    } catch (error) {
+      // Out of credit, rate limit, outage: keep what was saved and still queue reviews for it.
+      console.warn(`[review] AI stopped early after ${saved} names — ${error instanceof Error ? error.message : String(error)}`);
     }
-    for (const [k, l] of fresh) known.set(k, l);
-    console.log(`[review] AI classified ${fresh.size} new offer names (${keys.length - known.size} still to do)`);
+    console.log(`[review] AI classified ${saved} new offer names (${keys.length - known.size} still to do)`);
+    logAgreement(offersByStore, known, new Set(unseen.map((u) => u.key)));
   }
 
   const [stores, products] = await Promise.all([
@@ -130,4 +142,36 @@ export async function suggestMatchReviews(offersByStore: Map<string, Offer[]>): 
     queued++;
   }
   console.log(`[review] ${queued} AI match question(s) checked against the queue`);
+}
+
+/**
+ * How the AI's answers for this run's names compare with the hand-checked
+ * catalog rules — the quick precision check, printed to the run log.
+ */
+function logAgreement(offersByStore: Map<string, Offer[]>, labels: Map<string, Label>, keys: Set<string>) {
+  const seen = new Set<string>();
+  let agree = 0, aiOnly = 0, rulesOnly = 0, bothNone = 0, unsure = 0;
+  const examples: string[] = [];
+  for (const offers of offersByStore.values()) {
+    for (const o of offers) {
+      const key = o.name.toLowerCase().slice(0, 300);
+      if (!keys.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      const label = labels.get(key);
+      if (!label) continue;
+      if (label.confidence < MIN_CONFIDENCE) { unsure++; continue; }
+      const rules = ruleMatches(o);
+      if (label.product && rules.includes(label.product)) agree++;
+      else if (!label.product && rules.length === 0) bothNone++;
+      else if (label.product && rules.length === 0) { aiOnly++; if (examples.length < 12) examples.push(`AI says "${label.product}", no rule: ${o.name}`); }
+      else { rulesOnly++; if (examples.length < 12) examples.push(`rule says "${rules.join(", ")}", AI says "${label.product ?? "none"}": ${o.name}`); }
+    }
+  }
+  const matched = agree + aiOnly + rulesOnly;
+  console.log(
+    `[review] agreement on ${seen.size} names: ${agree} same product, ${bothNone} both "not a catalog product", ` +
+      `${aiOnly} AI-only, ${rulesOnly} rules-only/different, ${unsure} AI unsure` +
+      (matched ? ` — AI agrees with the rules on ${Math.round((100 * agree) / matched)} % of catalog matches` : ""),
+  );
+  for (const e of examples) console.log(`[review]   ${e}`);
 }
