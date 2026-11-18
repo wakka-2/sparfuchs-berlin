@@ -62,7 +62,8 @@ export const GOLD: Array<{ name: string; unitText: string; product: string | nul
   { name: "GOLDÄHREN Vollkorn-Wraps", unitText: "370-g-Packung", product: null },
   { name: "MEINE METZGEREI Paprika-Schinkengeschnetzeltes", unitText: "500-g-Packung", product: null },
   { name: "WONNEMEYER Kirschpaprika-Variation", unitText: "150-g-Packung", product: null },
-  { name: "KIRI Mit Sahne", unitText: "je 10 St. = 180-g-Packg.", product: null },
+  // Not cream (Sahne) — but it is cream cheese; the AI's 2nd eval caught my wrong label
+  { name: "KIRI Mit Sahne", unitText: "je 10 St. = 180-g-Packg.", product: "Frischkäse" },
   { name: "TANDIL Feinwaschmittel Pflege", unitText: "1,5-L-Flasche", product: null },
   { name: "STOCKMEYER Gebackene Hähnchenbrust", unitText: "je 125 g", product: null },
   { name: "BARILLA Spaghetti oder Fusilli Protein+", unitText: "je 400-g-Packg.", product: null },

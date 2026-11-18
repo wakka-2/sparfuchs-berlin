@@ -21,7 +21,6 @@ describe("catalog rules", () => {
     ["K-WINTER EDITION Eierlikörfässchen", 3.99, "je 200-g-Packg."],
     ["LANDFREUDE Gefärbte Eier aus Bodenhaltung", 2.99, "10-Stück-Packung"],
     ["MEINE METZGEREI Paprika-Schinkengeschnetzeltes", 3.49, "500-g-Packung"],
-    ["KIRI Mit Sahne", 2.79, "je 10 St. = 180-g-Packg."],
     ["WONNEMEYER Kirschpaprika-Variation", 1.99, "150-g-Packung"],
     ["MILSANI High-Protein Körniger Frischkäse", 1.98, "4x125-g-Packung"],
     ["GOURMET FINEST CUISINE Herzogin-Kartoffeln", 1.69, "600-g-Packung"],
@@ -141,5 +140,9 @@ describe("catalog rules", () => {
       return g.product ? !got.includes(g.product) : got.length > 0;
     }).map((g) => `${g.name} → ${ruleMatches({ name: g.name, price: 1, unitText: g.unitText }).join(", ") || "none"} (want ${g.product ?? "none"})`);
     expect(wrong).toEqual([]);
+  });
+
+  it("files KIRI under Frischkäse, not under Sahne", () => {
+    expect(matched(offer("KIRI Mit Sahne", 2.79, "je 10 St. = 180-g-Packg."))).toEqual(["Frischkäse"]);
   });
 });
