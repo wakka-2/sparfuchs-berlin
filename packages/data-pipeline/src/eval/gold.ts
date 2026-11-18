@@ -35,6 +35,14 @@ export const GOLD: Array<{ name: string; unitText: string; product: string | nul
   { name: "Lorenz Naturals", unitText: "je 95-g-Btl.", product: "Chips" },
   { name: "Wagner Big City Salami", unitText: "je 415-g-Pckg.", product: "TK-Pizza" },
   { name: "DR. OETKER Ristorante Pizza Tonno", unitText: "je 355-g-Packg.", product: "TK-Pizza" },
+  // Brands found by the AI review's second run (2026-11-18)
+  { name: "PERSIL Megaperls Color", unitText: "je 16 WL-Pckg.", product: "Waschmittel" },
+  { name: "ARIEL Universal-Pulver", unitText: "je 20 WL", product: "Waschmittel" },
+  { name: "SOMAT All in 1 Extra", unitText: "je 40 St.", product: "Geschirrspültabs" },
+  { name: "ARLA Buko", unitText: "je 200-g-Pckg.", product: "Frischkäse" },
+  { name: "SOMAT Maschinenreiniger-Tabs", unitText: "je 3 St. = 57-g-Packg.", product: null },
+  { name: "Wagner Die Backfrische Mozzarella", unitText: "je 350-g-Pckg.", product: "TK-Pizza" },
+  { name: "NUII Stieleis", unitText: "je 3 x 90 ml", product: "Eiscreme" },
   // Traps: a staple word in something else
   { name: "Damen-Spaghettiträgerhemden", unitText: "je Stück", product: null },
   { name: "Henglein Eierspätzle", unitText: "je 400-g-Btl.", product: null },

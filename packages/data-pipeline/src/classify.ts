@@ -37,7 +37,9 @@ You get a numbered list of offers (name, sometimes a description) and a fixed li
 
 It is NOT the product when it is a dish, snack, spread or ready meal that contains it, a flavoured or processed variant shoppers would not substitute (chocolate milk is not Vollmilch, Kräuterbutter is not Butter, cottage cheese is not Frischkäse), a different cut or animal, a non-food item, or packaging/accessories. When unsure, answer null.
 
-Answer for every number exactly once. "product" must be copied exactly from the catalog list, or null. "confidence" is 0 to 1.`;
+Some catalog products carry a definition in brackets; it is binding and stricter than everyday use (e.g. dyed Easter eggs are not "Eier").
+
+Answer for every number exactly once. "product" must be copied exactly from the catalog list (without the bracket), or null. "confidence" is 0 to 1.`;
 
 /** Ask Claude about offer names it has not seen yet. Missing answers are simply absent. */
 export async function classifyNames(
@@ -47,7 +49,8 @@ export async function classifyNames(
   onBatch?: (labels: Map<string, Label>, usage: { input: number; cached: number; output: number }) => Promise<void>,
 ): Promise<Map<string, Label>> {
   const products = Object.keys(CATALOG);
-  const catalogText = products.map((p) => `- ${p}`).join("\n");
+  // Products with a stricter meaning carry a short definition the AI must follow.
+  const catalogText = products.map((p) => (CATALOG[p].note ? `- ${p} (${CATALOG[p].note})` : `- ${p}`)).join("\n");
   const out = new Map<string, Label>();
 
   for (let start = 0; start < items.length; start += BATCH) {
@@ -161,7 +164,12 @@ Be strict: a wrong "yes" puts a wrong price on the site; a wrong "no" only leave
 export async function judgeCases(client: Anthropic, cases: JudgeCase[]): Promise<Map<number, { yes: boolean; confidence: number }>> {
   const out = new Map<number, { yes: boolean; confidence: number }>();
   if (cases.length === 0) return out;
-  const list = cases.map((c, i) => `${i}. Offer: "${c.offerName}" (${c.unitText}, ${c.priceText}) — product: "${c.product}"`).join("\n");
+  const list = cases
+    .map((c, i) => {
+      const note = CATALOG[c.product]?.note;
+      return `${i}. Offer: "${c.offerName}" (${c.unitText}, ${c.priceText}) — product: "${c.product}"${note ? ` (means: ${note})` : ""}`;
+    })
+    .join("\n");
   const response = await client.beta.messages.parse({
     model: MODEL,
     max_tokens: 16000,
