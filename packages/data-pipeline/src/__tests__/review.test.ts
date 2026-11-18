@@ -88,7 +88,7 @@ describe("matchReviews (AI vs rules)", () => {
 });
 
 describe("classifyNames", () => {
-  const stub = (responses: Array<{ stop_reason: string; parsed_output: unknown }>) => {
+  const stub = (responses: Array<{ stop_reason: string; usage: unknown; parsed_output: unknown }>) => {
     const calls: Array<Record<string, unknown>> = [];
     const client = { beta: { messages: { parse: async (p: Record<string, unknown>) => { calls.push(p); return responses.shift(); } } } };
     return { client: client as unknown as Anthropic, calls };
@@ -102,6 +102,7 @@ describe("classifyNames", () => {
   it("keeps only answers naming a real catalog product, clamps confidence", async () => {
     const { client, calls } = stub([{
       stop_reason: "end_turn",
+      usage: { input_tokens: 1, output_tokens: 1 },
       parsed_output: { items: [
         { i: 0, product: "Butter", confidence: 1.4 },
         { i: 1, product: null, confidence: 0.9 },
@@ -117,8 +118,18 @@ describe("classifyNames", () => {
     expect(calls[0]).toMatchObject({ model: MODEL, fallbacks: "default" });
   });
 
+  it("hands every batch to onBatch as it arrives, so a later failure loses nothing", async () => {
+    const many = Array.from({ length: 81 }, (_, i) => ({ key: `n${i}`, name: `Item ${i}` }));
+    const ok = (n: number) => ({ stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 }, parsed_output: { items: Array.from({ length: n }, (_, i) => ({ i, product: null, confidence: 0.9 })) } });
+    const responses = [ok(80)];
+    const client = { beta: { messages: { parse: async () => { const r = responses.shift(); if (!r) throw new Error("credit balance too low"); return r; } } } } as unknown as Anthropic;
+    const seen: number[] = [];
+    await expect(classifyNames(client, many, async (b) => { seen.push(b.size); })).rejects.toThrow(/credit/);
+    expect(seen).toEqual([80]); // the first batch was handed over before the second failed
+  });
+
   it("skips a refused batch instead of failing", async () => {
-    const { client } = stub([{ stop_reason: "refusal", parsed_output: null }]);
+    const { client } = stub([{ stop_reason: "refusal", usage: { input_tokens: 1, output_tokens: 0 }, parsed_output: null }]);
     expect((await classifyNames(client, items)).size).toBe(0);
   });
 });

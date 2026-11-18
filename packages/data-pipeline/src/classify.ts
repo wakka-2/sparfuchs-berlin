@@ -43,6 +43,8 @@ Answer for every number exactly once. "product" must be copied exactly from the 
 export async function classifyNames(
   client: Anthropic,
   items: Array<{ key: string; name: string; description?: string }>,
+  /** Called after every batch, so answers already paid for are kept if a later batch fails */
+  onBatch?: (labels: Map<string, Label>) => Promise<void>,
 ): Promise<Map<string, Label>> {
   const products = Object.keys(CATALOG);
   const catalogText = products.map((p) => `- ${p}`).join("\n");
@@ -65,17 +67,22 @@ export async function classifyNames(
       output_config: { effort: "low", format: betaZodOutputFormat(Answer) },
     });
 
+    const u = response.usage;
+    console.log(`[classify] batch ${start / BATCH + 1}: ${batch.length} names, ${u.input_tokens} in (+${u.cache_read_input_tokens ?? 0} cached) / ${u.output_tokens} out tokens`);
     if (response.stop_reason === "refusal" || !response.parsed_output) {
       console.warn(`[classify] batch ${start / BATCH + 1}: no usable answer (${response.stop_reason})`);
       continue;
     }
+    const batchLabels = new Map<string, Label>();
     for (const a of response.parsed_output.items) {
       const it = batch[a.i];
       if (!it) continue;
       // Anything not copied exactly from the catalog counts as "none of them".
       const product = a.product && CATALOG[a.product] ? a.product : null;
-      out.set(it.key, { product, confidence: Math.max(0, Math.min(1, a.confidence)) });
+      batchLabels.set(it.key, { product, confidence: Math.max(0, Math.min(1, a.confidence)) });
     }
+    for (const [k, v] of batchLabels) out.set(k, v);
+    await onBatch?.(batchLabels);
   }
   return out;
 }
