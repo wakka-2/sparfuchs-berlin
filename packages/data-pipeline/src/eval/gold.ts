@@ -1,0 +1,73 @@
+/**
+ * Hand-checked test set: real offer names from REWE, Penny, Aldi Nord and
+ * Kaufland (week 47/2026) with the correct catalog product, or null when the
+ * offer is none of them. Includes every trap found while building the site.
+ * Used to measure accuracy without people: the rules must score 100 % (unit
+ * test), the AI is scored with `pnpm ai:eval`.
+ */
+export const GOLD: Array<{ name: string; unitText: string; product: string | null }> = [
+  // Plain matches
+  { name: "LANDLIEBE Butter", unitText: "250-g-Packung", product: "Butter" },
+  { name: "MILSANI Frische Vollmilch", unitText: "1-L-Packung", product: "Vollmilch 3,5%" },
+  { name: "LANDFREUDE Eier aus Bodenhaltung", unitText: "10-Stück-Packung", product: "Eier" },
+  { name: "Bananen", unitText: "kg-Preis", product: "Bananen" },
+  { name: "CUCINA Spaghetti", unitText: "500-g-Beutel", product: "Spaghetti" },
+  { name: "BON-RI Parboiled Reis", unitText: "1-kg-Packung", product: "Reis" },
+  { name: "BACK FAMILY Weizenmehl", unitText: "1-kg-Packung", product: "Mehl" },
+  { name: "Jacobs Krönung", unitText: "je 500-g-Pckg.", product: "Kaffee Filterkaffee" },
+  { name: "GOLDÄHREN Sandwichtoast", unitText: "750-g-Packung", product: "Toastbrot" },
+  { name: "MEIN BESTES Bäckerbrötchen", unitText: "Stück", product: "Brötchen vom Bäcker" },
+  { name: "MEIN BESTES Krustenbrot", unitText: "1000-g-Stück", product: "Brot vom Bäcker" },
+  { name: "Clementinen", unitText: "je 1-kg-Netz", product: "Clementinen / Mandarinen" },
+  { name: "ZESPRI SunGold Kiwi", unitText: "je Stück", product: "Kiwi" },
+  { name: "ALMARE Norwegischer Räucherlachs", unitText: "200-g-Packung", product: "Räucherlachs" },
+  { name: "Coca-Cola", unitText: "je 1,25-l-Fl.", product: "Cola" },
+  { name: "LANGNESE Cremissimo", unitText: "je 900-ml-Packg.", product: "Eiscreme" },
+  { name: "KOKETT Toilettenpapier XXL", unitText: "32x200-Blatt-Packung", product: "Toilettenpapier" },
+  { name: "MILSANI Schlagsahne", unitText: "200-g-Becher", product: "Sahne" },
+  { name: "Speisemöhren", unitText: "2-kg-Beutel", product: "Karotten" },
+  { name: "GRANDESSA Erdbeer-Konfitüre", unitText: "450-g-Glas", product: "Konfitüre" },
+  { name: "HARIBO Goldbären XXL", unitText: "340-g-Beutel", product: "Gummibärchen / Fruchtgummi" },
+  { name: "LANGNESE Bienenhonig", unitText: "je 500-g-Glas", product: "Honig" },
+  { name: "POWER FORCE Geschirrspülmittel", unitText: "1-L-Flasche", product: "Spülmittel" },
+  // Brand names without the product word (rules learned these from the AI review)
+  { name: "Philadelphia", unitText: "je 175-g-Pckg.", product: "Frischkäse" },
+  { name: "Lorenz Naturals", unitText: "je 95-g-Btl.", product: "Chips" },
+  { name: "Wagner Big City Salami", unitText: "je 415-g-Pckg.", product: "TK-Pizza" },
+  { name: "DR. OETKER Ristorante Pizza Tonno", unitText: "je 355-g-Packg.", product: "TK-Pizza" },
+  // Traps: a staple word in something else
+  { name: "Damen-Spaghettiträgerhemden", unitText: "je Stück", product: null },
+  { name: "Henglein Eierspätzle", unitText: "je 400-g-Btl.", product: null },
+  { name: "K-WINTER EDITION Eierlikörfässchen", unitText: "je 125-g-Packg.", product: null },
+  // "Bachmeier" contains "eier" — not eggs, but it is a bake-off roll
+  { name: "BACHMEIER Orig. bayr. Laugenbrezen", unitText: "je 8 St.", product: "Brötchen (Aufback)" },
+  { name: "Innocent Smoothie Mango, Maracuja & Apfel", unitText: "je 750-ml-Fl.", product: null },
+  { name: "Lenor Wäscheparfum", unitText: "je 176-g-Dose", product: null },
+  { name: "FELIX Gemischte Vielfalt in Gelee", unitText: "48x85-g-Packung", product: null },
+  { name: "MILSANI Back-Camembert", unitText: "350-g-Packung", product: null },
+  { name: "BERIDA Graved Lachs", unitText: "je 200 g", product: null },
+  { name: "BACK FAMILY Schokoladenstreusel", unitText: "400-g-Packung", product: null },
+  { name: "BERIDA Fish & Chips", unitText: "je 1.000 g", product: null },
+  { name: "CRAZY WOLF Energy Drink oder Strong Cola", unitText: "je 0,33-l-Dose", product: null },
+  { name: "MILSANI High-Protein Körniger Frischkäse", unitText: "4x125-g-Packung", product: null },
+  { name: "GOURMET FINEST CUISINE Herzogin-Kartoffeln", unitText: "600-g-Packung", product: null },
+  { name: "GOLDÄHREN Vollkorn-Wraps", unitText: "370-g-Packung", product: null },
+  { name: "MEINE METZGEREI Paprika-Schinkengeschnetzeltes", unitText: "500-g-Packung", product: null },
+  { name: "WONNEMEYER Kirschpaprika-Variation", unitText: "150-g-Packung", product: null },
+  { name: "KIRI Mit Sahne", unitText: "je 10 St. = 180-g-Packg.", product: null },
+  { name: "TANDIL Feinwaschmittel Pflege", unitText: "1,5-L-Flasche", product: null },
+  { name: "STOCKMEYER Gebackene Hähnchenbrust", unitText: "je 125 g", product: null },
+  { name: "BARILLA Spaghetti oder Fusilli Protein+", unitText: "je 400-g-Packg.", product: null },
+  { name: "MILSANI Milchreis", unitText: "200-g-Becher", product: null },
+  { name: "GOLDÄHREN Landbrot", unitText: "1.000-g-Packung", product: null },
+  { name: "LANDFREUDE Gefärbte Eier aus Bodenhaltung", unitText: "10-Stück-Packung", product: null },
+  { name: "MILKA Weihnachtsmischung", unitText: "je 210-g-Packg.", product: null },
+  { name: "Zentis Erdbeer Konfitüre extra", unitText: "je 335-g-Glas", product: "Konfitüre" },
+  // Clearly none of the catalog products
+  { name: "NIKE Damen-Freizeitschuhe", unitText: "je Paar", product: null },
+  { name: "ULTIMATE SPEED® Eiskratzer mit Bürste", unitText: "je Stück", product: null },
+  { name: "ENERGIZER Notfall-Taschenlampe", unitText: "je Stück", product: null },
+  { name: "FRANZISKANER Premium-Weißbier", unitText: "je Ka. 20 x 0,5-l-Fl.", product: null },
+  { name: "Milka Gingerbread", unitText: "je 300-g-Tafel", product: "Schokolade (Tafel)" },
+  { name: "Mini-Tannenbaum", unitText: "je Stück", product: null },
+];

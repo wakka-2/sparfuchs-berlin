@@ -53,7 +53,7 @@ export async function listReviews(status: ReviewStatus) {
 export async function decideReview(id: string, status: Exclude<ReviewStatus, "pending">): Promise<boolean> {
   const updated = await db
     .update(offerReviews)
-    .set({ status, decidedAt: new Date() })
+    .set({ status, decidedAt: new Date(), decidedBy: "human" })
     .where(eq(offerReviews.id, id))
     .returning({ id: offerReviews.id });
   return updated.length > 0;
@@ -74,7 +74,8 @@ export async function aiStats() {
       pending: sql<number>`count(*) filter (where ${offerReviews.status} = 'pending')`.mapWith(Number),
     })
     .from(offerReviews)
-    .where(sql`${offerReviews.kind} = 'match' and ${offerReviews.reason} like 'KI%'`);
+    // Only people's decisions are the reference; the AI judge grading itself would prove nothing.
+    .where(sql`${offerReviews.kind} = 'match' and ${offerReviews.reason} like 'KI%' and coalesce(${offerReviews.decidedBy}, 'human') = 'human'`);
   const runs = await db.select().from(aiReviewRuns).orderBy(desc(aiReviewRuns.createdAt)).limit(30);
   return {
     decisions: {

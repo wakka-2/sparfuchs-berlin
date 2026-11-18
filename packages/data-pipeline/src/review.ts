@@ -3,10 +3,10 @@
  * Decisions feed back into matching on the next run (see loadDecisions).
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "./db.js";
 import type { MatchDecisions } from "./catalog.js";
-import { classifyNames, matchReviews, MODEL, MIN_CONFIDENCE, type Label } from "./classify.js";
+import { classifyNames, judgeCases, matchReviews, MODEL, MIN_CONFIDENCE, type Label } from "./classify.js";
 import { ruleMatches } from "./catalog.js";
 import type { Offer } from "./types.js";
 
@@ -151,6 +151,59 @@ export async function suggestMatchReviews(offersByStore: Map<string, Offer[]>): 
     queued++;
   }
   console.log(`[review] ${queued} AI match question(s) checked against the queue`);
+
+  try {
+    await autoDecide();
+  } catch (error) {
+    console.warn(`[judge] skipped — ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/** Decide automatically only when the judge is at least this sure; otherwise the hand-checked rules stand. */
+export const JUDGE_MIN_CONFIDENCE = 0.85;
+const JUDGE_MAX_PER_RUN = 40;
+
+/**
+ * No human in the loop: every open rules-vs-AI question gets a second,
+ * careful AI check. A confident verdict is applied (and feeds matching on
+ * the next run); an unsure one leaves the question open, so the rules win.
+ */
+async function autoDecide(): Promise<void> {
+  const open = await db
+    .select({
+      id: schema.offerReviews.id,
+      offerName: schema.offerReviews.offerName,
+      unitText: schema.offerReviews.unitText,
+      priceCents: schema.offerReviews.priceCents,
+      reason: schema.offerReviews.reason,
+      product: schema.products.nameDe,
+    })
+    .from(schema.offerReviews)
+    .innerJoin(schema.products, eq(schema.products.id, schema.offerReviews.productId))
+    .where(and(eq(schema.offerReviews.kind, "match"), eq(schema.offerReviews.status, "pending")))
+    .limit(JUDGE_MAX_PER_RUN);
+  if (open.length === 0) return;
+
+  const verdicts = await judgeCases(
+    new Anthropic(),
+    open.map((r) => ({
+      offerName: r.offerName,
+      unitText: r.unitText,
+      priceText: `${(r.priceCents / 100).toFixed(2).replace(".", ",")} €`,
+      product: r.product,
+    })),
+  );
+  let decided = 0;
+  for (const [i, v] of verdicts) {
+    if (v.confidence < JUDGE_MIN_CONFIDENCE) continue;
+    await db
+      .update(schema.offerReviews)
+      .set({ status: v.yes ? "approved" : "rejected", decidedAt: new Date(), decidedBy: "ai-judge" })
+      .where(eq(schema.offerReviews.id, open[i].id));
+    decided++;
+    console.log(`[judge] ${v.yes ? "YES" : "NO "} (${Math.round(v.confidence * 100)} %) "${open[i].offerName}" is "${open[i].product}"`);
+  }
+  console.log(`[judge] decided ${decided} of ${open.length} open questions automatically; the rest stay with the rules`);
 }
 
 /**
@@ -185,4 +238,14 @@ function logAgreement(offersByStore: Map<string, Offer[]>, labels: Map<string, L
   );
   for (const e of examples) console.log(`[review]   ${e}`);
   return { names: seen.size, agree, bothNone, aiOnly, rulesOnly, unsure };
+}
+
+/** Approve a held price that is pending from an earlier run; true when it was. */
+export async function acceptRepeatedJump(key: string): Promise<boolean> {
+  const updated = await db
+    .update(schema.offerReviews)
+    .set({ status: "approved", decidedAt: new Date(), decidedBy: "auto-repeat" })
+    .where(and(eq(schema.offerReviews.key, key), eq(schema.offerReviews.status, "pending")))
+    .returning({ id: schema.offerReviews.id });
+  return updated.length > 0;
 }

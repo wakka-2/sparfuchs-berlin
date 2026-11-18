@@ -1,0 +1,31 @@
+name: AI accuracy check
+
+# Scores the AI classifier against the hand-checked test set
+# (packages/data-pipeline/src/eval/gold.ts). ~0,04 $ per run.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays, 07:00 Berlin (winter)
+  workflow_dispatch:
+
+jobs:
+  eval:
+    name: Score AI on the test set
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @sparfuchs/data-pipeline^... build
+      - name: Score
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: pnpm --filter @sparfuchs/data-pipeline ai:eval

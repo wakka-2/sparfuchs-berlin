@@ -10,7 +10,8 @@
     "test": "vitest run",
     "clean": "rm -rf dist",
     "run:once": "tsx src/run.ts",
-    "start:cron": "tsx src/scheduler.ts"
+    "start:cron": "tsx src/scheduler.ts",
+    "ai:eval": "tsx src/ai-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.9.0",
