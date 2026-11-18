@@ -7,7 +7,8 @@
 import type { Offer, StoreSource } from "../types.js";
 import { fetchText, berlinDate } from "../http.js";
 
-const OFFERS_URL = "https://filiale.kaufland.de/angebote/uebersicht.html";
+const BASE = "https://filiale.kaufland.de";
+const OFFERS_URL = `${BASE}/angebote/uebersicht.html`;
 
 interface KauflandOffer {
   offerId: string;
@@ -59,9 +60,53 @@ export function parseKaufland(html: string, today: string = berlinDate()): Offer
   return [...byId.values()];
 }
 
+/** Kaufland's Berlin branches from its store finder ("n" = store id, "t" = town). */
+export function berlinStoreIds(stores: Array<{ n?: string; t?: string }>): string[] {
+  return stores.filter((s) => s.t?.trim().toLowerCase() === "berlin" && s.n).map((s) => s.n!);
+}
+
+/**
+ * One list for all of Berlin: every offer any Berlin branch has, once. Where
+ * branches disagree on a price, the price most of them charge wins.
+ */
+export function mergeBranches(perBranch: Offer[][]): Offer[] {
+  const groups = new Map<string, Offer[]>();
+  for (const offers of perBranch) {
+    for (const o of offers) {
+      const key = `${o.name}|${o.unitText}`;
+      groups.set(key, [...(groups.get(key) ?? []), o]);
+    }
+  }
+  return [...groups.values()].map((list) => {
+    const byPrice = new Map<number, Offer[]>();
+    for (const o of list) byPrice.set(o.price, [...(byPrice.get(o.price) ?? []), o]);
+    return [...byPrice.values()].sort((a, b) => b.length - a.length || a[0].price - b[0].price)[0][0];
+  });
+}
+
 export class KauflandSource implements StoreSource {
   readonly storeSlug = "kaufland";
   async fetchOffers(): Promise<Offer[]> {
-    return parseKaufland(await fetchText(OFFERS_URL));
+    // The default page is not Berlin's: a Berlin branch has ~50 offers it lacks.
+    const ids = berlinStoreIds(JSON.parse(await fetchText(`${BASE}/.klstorefinder.json`)));
+    if (ids.length === 0) throw new Error("kaufland: no Berlin branch in the store finder — page structure changed");
+    const perBranch: Offer[][] = [];
+    for (let i = 0; i < ids.length; i += 4) {
+      const pages = await Promise.all(
+        ids.slice(i, i + 4).map((id) => fetchText(`${BASE}/angebote/uebersicht.storeName=${encodeURIComponent(id)}.html`)),
+      );
+      for (const html of pages) {
+        try {
+          perBranch.push(parseKaufland(html));
+        } catch {
+          // A branch without a flyer this week (seen: DE8940) — skip it.
+        }
+      }
+    }
+    // Most branches unreadable means the page changed, not a few odd branches.
+    if (perBranch.length < ids.length / 2) {
+      throw new Error(`kaufland: only ${perBranch.length} of ${ids.length} Berlin branches readable — page structure changed`);
+    }
+    return mergeBranches(perBranch);
   }
 }

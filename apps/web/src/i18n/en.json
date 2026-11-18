@@ -67,7 +67,8 @@
     "viewOffer": "View offer at {{store}}",
     "regularPrice": "Everyday price",
     "offerUntil": "Offer until {{date}}",
-    "loose": "loose – price per kg"
+    "loose": "loose – price per kg",
+    "reweVaries": "May differ between REWE stores"
   },
   "basket": {
     "title": "Shopping List",
@@ -124,7 +125,7 @@
     "title": "About Sparfuchs Berlin",
     "intro": "Sparfuchs Berlin compares the big supermarkets' weekly offers and Aldi Nord's everyday prices. An offer is only matched to a product when it really is that product, and everything is compared per kilo, litre or piece.",
     "dataSources": "Data Sources",
-    "dataSourcesText": "Offers come from rewe.de, penny.de, aldi-nord.de and kaufland.de, everyday prices from aldi-nord.de's online range. Everything is fetched daily at 05:00; expired offers disappear automatically. REWE, Penny and Kaufland only publish their weekly offers online, so everyday prices are from Aldi Nord only for now.",
+    "dataSourcesText": "Offers come from rewe.de, penny.de, aldi-nord.de and kaufland.de, everyday prices from aldi-nord.de's online range. For Penny we read the Berlin sales region, for Kaufland all Berlin branches (not every branch stocks every offer). REWE stores set their offers individually; we show REWE's nationwide offers, which do not apply in every store. Everything is fetched daily; expired offers disappear automatically.",
     "disclaimer": "Disclaimer",
     "disclaimerText": "All prices without guarantee. Actual in-store prices may differ. This is not an official service of the stores named.",
     "feedback": "Feedback",

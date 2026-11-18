@@ -46,7 +46,7 @@ export function parseReweTiles(tiles: ReweTile[], validUntil: string): Offer[] {
   return offers;
 }
 
-async function scrapeTiles(page: Page, url: string): Promise<ReweTile[]> {
+export async function scrapeTiles(page: Page, url: string): Promise<ReweTile[]> {
   await gotoWithRetry(page, url);
   try {
     await page.waitForSelector(".cor-offer-renderer-tile", { state: "attached", timeout: 20_000 });

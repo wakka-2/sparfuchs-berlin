@@ -2,15 +2,26 @@ name: Daily Price Pipeline
 
 on:
   schedule:
-    # Every day at 05:00 CET (04:00 UTC)
-    - cron: "0 4 * * *"
+    # Twice a day. GitHub often starts scheduled runs hours late (the 04:00
+    # run began at 12:28 on 2026-11-18), and a second run also retries a
+    # store that was blocked by a bot check in the morning.
+    - cron: "0 4 * * *" # 05:00 Berlin (winter)
+    - cron: "0 13 * * *" # 14:00 Berlin (winter)
   workflow_dispatch: # Allow manual trigger
+
+# Never two runs writing prices at the same time.
+concurrency:
+  group: price-pipeline
+  cancel-in-progress: false
 
 jobs:
   run-pipeline:
     name: Fetch store prices
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write # keepalive step below
 
     steps:
       - name: Checkout
@@ -36,11 +47,24 @@ jobs:
       - name: Build workspace dependencies
         run: pnpm --filter @sparfuchs/data-pipeline^... build
 
+      # Only REWE still needs a browser; the other stores are read over plain HTTP.
       - name: Install Playwright browsers
         run: pnpm --filter @sparfuchs/data-pipeline exec playwright install chromium --with-deps
 
       - name: Run price pipeline
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Optional: AI match suggestions for the review queue (skipped when unset)
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           NODE_ENV: production
         run: pnpm --filter @sparfuchs/data-pipeline run:once
+
+      # GitHub disables scheduled workflows after 60 days without repository
+      # activity — which silently stopped all price updates on 2026-10-05.
+      # Re-enabling an enabled workflow resets that timer. Runs even when a
+      # store failed, so one broken scraper cannot also stop the schedule.
+      - name: Keep the daily schedule alive
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/pipeline-cron.yml/enable"

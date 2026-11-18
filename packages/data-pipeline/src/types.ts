@@ -35,7 +35,11 @@ export interface StoreSource {
 /** Pipeline run summary */
 export interface PipelineRunResult {
   storeSlug: string;
-  status: "success" | "failed";
+  /**
+   * blocked = the store showed a bot check: nothing was written, existing
+   * prices stay until they expire. A warning, not a failure of ours.
+   */
+  status: "success" | "failed" | "blocked";
   /** Offers read from the store */
   productsFetched: number;
   /** Catalog products that got a current price */
