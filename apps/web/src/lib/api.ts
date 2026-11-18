@@ -173,18 +173,28 @@ export interface StoreOffer {
   url: string | null;
   is_offer: boolean;
   valid_until: string;
+  category: string | null;
+  unit_price_formatted: string | null;
+  /** The very same product (brand, name and size) at other stores this week */
+  also_at: Array<{ store_slug: string; store_name: string; price_formatted: string }>;
 }
+
+export type OfferSort = "relevance" | "price" | "unit_price";
 
 export type OfferType = "offer" | "regular";
 
-export async function fetchOffers(params: { type: OfferType; store?: string; q?: string; page?: number }) {
+export async function fetchOffers(params: {
+  type: OfferType; store?: string; q?: string; page?: number; category?: string; sort?: OfferSort;
+}) {
   const sp = new URLSearchParams({ type: params.type });
+  if (params.category) sp.set("category", params.category);
+  if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
   if (params.store) sp.set("store", params.store);
   if (params.q) sp.set("q", params.q);
   if (params.page) sp.set("page", String(params.page));
   const res = await apiFetch<{
     success: true;
-    data: { offers: StoreOffer[]; store_counts: Record<string, number> };
+    data: { offers: StoreOffer[]; store_counts: Record<string, number>; category_counts: Record<string, number> };
     meta: { pagination: Pagination };
   }>(`/offers?${sp}`);
   return { ...res.data, pagination: res.meta.pagination };

@@ -13,6 +13,7 @@ const OFFERS_URL = "https://www.aldi-nord.de/angebote.html";
 
 interface AldiProduct {
   objectID?: string;
+  hierarchicalCategories?: { lvl0?: string[] };
   name: string;
   brandName?: string;
   shortDescription?: string;
@@ -28,6 +29,22 @@ interface AldiProduct {
 }
 
 const DAY = 86_400;
+
+/** Aldi Nord's own top-level categories → the site's browse categories. */
+const ALDI_CATEGORIES: Record<string, string> = {
+  "Snacks & Süßigkeiten": "suesses-snacks", "Milchprodukte": "milch-kaese", "Vorräte, Back- & Kochzutaten": "vorrat",
+  "Fleisch & Wurst": "fleisch-fisch", "Fisch & Meeresfrüchte": "fleisch-fisch", "Getränke & Heißgetränke": "getraenke",
+  "Alkoholische Getränke": "alkohol", "Backwaren, Aufstriche & Cerealien": "brot-aufstriche", "Kosmetik & Pflege": "drogerie",
+  "Windeln & Babynahrung": "drogerie", "Fertiggerichte": "tiefkuehl-fertig", "Haushalt": "haushalt", "Tierfutter": "haushalt",
+  "Eis, Kuchen & Desserts": "suesses-snacks", "Obst & Gemüse": "obst-gemuese",
+};
+function aldiCategory(p: AldiProduct): string | undefined {
+  for (const c of p.hierarchicalCategories?.lvl0 ?? []) {
+    const hit = ALDI_CATEGORIES[c.trim()];
+    if (hit) return hit;
+  }
+  return undefined; // seasonal or unknown: the name-based classifier decides
+}
 
 function nextData(html: string) {
   const next = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s);
@@ -71,6 +88,7 @@ function toOffer(p: AldiProduct, nowSec: number): Offer | null {
     url: p.productSlug ? `https://www.aldi-nord.de/produkt/${p.productSlug}.html` : OFFERS_URL,
     validUntil: berlinDate(new Date((regular ? nowSec + DAY : cp.validUntil) * 1000)),
     regular,
+    category: aldiCategory(p),
   };
 }
 

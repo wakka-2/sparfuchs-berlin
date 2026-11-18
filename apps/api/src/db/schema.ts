@@ -191,11 +191,17 @@ export const storeOffers = pgTable(
     url: varchar("url", { length: 500 }),
     isOffer: boolean("is_offer").notNull().default(true),
     validUntil: date("valid_until").notNull(),
+    category: varchar("category", { length: 30 }),
+    unitPriceCents: integer("unit_price_cents"),
+    unitKind: varchar("unit_kind", { length: 10 }),
+    matchKey: varchar("match_key", { length: 400 }),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_store_offers_store").on(table.storeId),
     index("idx_store_offers_valid").on(table.validUntil),
+    index("idx_store_offers_category").on(table.category),
+    index("idx_store_offers_match_key").on(table.matchKey),
   ],
 );
 

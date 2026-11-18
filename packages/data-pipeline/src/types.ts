@@ -21,6 +21,8 @@ export interface Offer {
   validUntil?: string;
   /** Everyday shelf price rather than a flyer offer */
   regular?: boolean;
+  /** Browse category when the store itself says (Aldi); otherwise derived from the name */
+  category?: string;
 }
 
 /** Store source interface — every store module must implement this */

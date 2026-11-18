@@ -5,6 +5,7 @@ import { rankOffers, priceProblem, CATALOG } from "./catalog.js";
 import { suggestMatchReviews, loadDecisions, queueReview, priceKey } from "./review.js";
 import type { Offer, StoreSource, PipelineRunResult } from "./types.js";
 import { berlinDate, saturdayOf } from "./http.js";
+import { offerFacts } from "./offerFacts.js";
 
 const toCents = (euros: number) => Math.round(euros * 100);
 
@@ -248,6 +249,7 @@ async function replaceStoreOffers(storeId: string, offers: Offer[]): Promise<voi
     url: o.url?.slice(0, 500) ?? null,
     isOffer: !o.regular,
     validUntil: o.validUntil ?? fallbackUntil,
+    ...offerFacts(o),
   }));
   await db.transaction(async (tx) => {
     await tx.delete(schema.storeOffers).where(eq(schema.storeOffers.storeId, storeId));

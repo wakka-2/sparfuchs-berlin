@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { fetchOffers, type OfferType, type StoreOffer } from "../lib/api";
+import { fetchOffers, type OfferSort, type OfferType, type StoreOffer } from "../lib/api";
 import { formatBasePrice } from "../lib/format";
 import { StoreBadge } from "../components/StoreBadge";
 import { PriceKind } from "../components/PriceKind";
@@ -9,6 +9,12 @@ import { ProductGridSkeleton } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
 import { Icon } from "../components/Icon";
 import { track } from "../lib/analytics";
+
+const CATEGORIES = [
+  "obst-gemuese", "milch-kaese", "fleisch-fisch", "brot-aufstriche", "vorrat", "tiefkuehl-fertig",
+  "suesses-snacks", "getraenke", "alkohol", "drogerie", "haushalt", "sonstiges",
+] as const;
+const SORTS: OfferSort[] = ["relevance", "unit_price", "price"];
 
 const STORES = [
   { slug: "rewe", name: "REWE" },
@@ -28,13 +34,17 @@ export function OffersPage() {
   const type: OfferType = params.get("typ") === "sortiment" ? "regular" : "offer";
   const store = params.get("markt") ?? undefined;
   const q = params.get("q") ?? "";
+  const category = params.get("kategorie") ?? undefined;
+  const sortParam = params.get("sort") as OfferSort | null;
+  const sort: OfferSort = sortParam && SORTS.includes(sortParam) ? sortParam : "relevance";
 
   const [input, setInput] = useState(q);
   const [items, setItems] = useState<StoreOffer[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
   // The page belongs to one set of filters; new filters start at page 1.
-  const filterKey = `${type}|${store ?? ""}|${q}`;
+  const filterKey = `${type}|${store ?? ""}|${q}|${category ?? ""}|${sort}`;
   const [paging, setPaging] = useState({ key: filterKey, page: 1 });
   const page = paging.key === filterKey ? paging.page : 1;
   const [retry, setRetry] = useState(0);
@@ -69,11 +79,12 @@ export function OffersPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchOffers({ type, store, q: q || undefined, page })
+    fetchOffers({ type, store, q: q || undefined, page, category, sort })
       .then((r) => {
         if (cancelled) return;
         setItems((prev) => (page === 1 ? r.offers : [...prev, ...r.offers]));
         setCounts(r.store_counts);
+        setCategoryCounts(r.category_counts);
         setTotal(r.pagination.total_items);
         setTotalPages(r.pagination.total_pages);
         setSettled({ key: requestKey });
@@ -124,7 +135,14 @@ export function OffersPage() {
           />
         </label>
 
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label={t("offers.categoryLabel")}>
+          <Chip active={!category} onClick={() => update({ kategorie: undefined })} label={t("offers.allCategories")} count={Object.values(categoryCounts).reduce((a, b) => a + b, 0)} />
+          {CATEGORIES.filter((c) => categoryCounts[c] || c === category).map((c) => (
+            <Chip key={c} active={category === c} onClick={() => update({ kategorie: c })} label={t(`browse.${c}`)} count={categoryCounts[c] ?? 0} />
+          ))}
+        </div>
+
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label={t("offers.storeLabel")}>
           <Chip active={!store} onClick={() => update({ markt: undefined })} label={t("common.all")} count={allCount} />
           {storeChips.map((s) => (
             <Chip
@@ -148,9 +166,21 @@ export function OffersPage() {
         </p>
       ) : (
         <>
-          <p className="text-sm text-ink-subtle" aria-live="polite">
-            {t(type === "offer" ? "offers.countOffers" : "offers.countRegular", { count: total })}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-ink-subtle" aria-live="polite">
+              {t(type === "offer" ? "offers.countOffers" : "offers.countRegular", { count: total })}
+            </p>
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-ink-muted">{t("offers.sortLabel")}</span>
+              <select
+                value={sort}
+                onChange={(e) => update({ sort: e.target.value === "relevance" ? undefined : e.target.value })}
+                className="min-h-11 cursor-pointer rounded-xl border border-line bg-surface px-3 font-semibold"
+              >
+                {SORTS.map((s) => <option key={s} value={s}>{t(`offers.sort_${s}`)}</option>)}
+              </select>
+            </label>
+          </div>
           <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {items.map((o) => <OfferCard key={o.id} offer={o} lang={i18n.language} />)}
           </ul>
@@ -205,7 +235,14 @@ function OfferCard({ offer, lang }: { offer: StoreOffer; lang: string }) {
         <h2 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">{offer.name}</h2>
         <p className="tabular font-display text-xl font-bold text-brand-800">{offer.price_formatted}</p>
         <p className="line-clamp-1 text-xs text-ink-muted" title={offer.unit_text}>{offer.unit_text}</p>
-        {base && <p className="tabular text-xs text-ink-muted">{base}</p>}
+        {(offer.unit_price_formatted || base) && (
+          <p className="tabular text-xs font-semibold text-ink-muted">{offer.unit_price_formatted ?? base}</p>
+        )}
+        {offer.also_at.length > 0 && (
+          <p className="text-xs text-brand-800">
+            {offer.also_at.slice(0, 2).map((a) => t("offers.alsoAt", { store: a.store_name, price: a.price_formatted })).join(" · ")}
+          </p>
+        )}
         <PriceKind price={offer} lang={lang} className="mt-auto pt-1" />
       </div>
     </>
