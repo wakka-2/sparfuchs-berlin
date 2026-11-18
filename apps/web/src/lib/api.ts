@@ -226,6 +226,16 @@ export async function fetchReviews(token: string) {
   return res.data.reviews;
 }
 
+export interface AiStats {
+  decisions: { decided: number; ai_right: number; pending: number; precision: number | null };
+  runs: Array<{ at: string; names: number; agree: number; both_none: number; ai_only: number; rules_only: number; unsure: number; agreement: number | null; input_tokens: number; cached_tokens: number; output_tokens: number }>;
+}
+
+export async function fetchAiStats(token: string) {
+  const res = await apiFetch<{ success: true; data: AiStats }>("/admin/ai-stats", { headers: bearer(token) });
+  return res.data;
+}
+
 export async function decideReview(token: string, id: string, status: "approved" | "rejected") {
   await apiFetch(`/admin/reviews/${id}`, { method: "POST", headers: bearer(token), body: JSON.stringify({ status }) });
 }

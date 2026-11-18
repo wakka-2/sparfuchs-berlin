@@ -179,7 +179,11 @@
     "questionPrice": "Is this price right for “{{product}}”?",
     "approve": "Yes",
     "reject": "No",
-    "open": "View in shop"
+    "open": "View in shop",
+    "aiPrecision": "AI accuracy (your decisions)",
+    "aiPrecisionHint": "AI was right {{right}} of {{decided}} times",
+    "aiAgreement": "Agreement with the rules (last run)",
+    "aiAgreementHint": "{{names}} names checked · {{runs}} runs recorded · {{tokens}} tokens"
   },
   "featured": {
     "title": "Top deals this week",

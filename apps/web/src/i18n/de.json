@@ -179,7 +179,11 @@
     "questionPrice": "Stimmt dieser Preis für „{{product}}“?",
     "approve": "Ja",
     "reject": "Nein",
-    "open": "Im Shop ansehen"
+    "open": "Im Shop ansehen",
+    "aiPrecision": "KI-Genauigkeit (deine Entscheidungen)",
+    "aiPrecisionHint": "KI lag {{right}} von {{decided}} Mal richtig",
+    "aiAgreement": "Übereinstimmung mit den Regeln (letzter Lauf)",
+    "aiAgreementHint": "{{names}} Namen geprüft · {{runs}} Läufe erfasst · {{tokens}} Tokens"
   },
   "featured": {
     "title": "Top-Angebote der Woche",

@@ -44,7 +44,7 @@ export async function classifyNames(
   client: Anthropic,
   items: Array<{ key: string; name: string; description?: string }>,
   /** Called after every batch, so answers already paid for are kept if a later batch fails */
-  onBatch?: (labels: Map<string, Label>) => Promise<void>,
+  onBatch?: (labels: Map<string, Label>, usage: { input: number; cached: number; output: number }) => Promise<void>,
 ): Promise<Map<string, Label>> {
   const products = Object.keys(CATALOG);
   const catalogText = products.map((p) => `- ${p}`).join("\n");
@@ -82,7 +82,7 @@ export async function classifyNames(
       batchLabels.set(it.key, { product, confidence: Math.max(0, Math.min(1, a.confidence)) });
     }
     for (const [k, v] of batchLabels) out.set(k, v);
-    await onBatch?.(batchLabels);
+    await onBatch?.(batchLabels, { input: u.input_tokens, cached: u.cache_read_input_tokens ?? 0, output: u.output_tokens });
   }
   return out;
 }

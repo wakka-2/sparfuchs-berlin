@@ -1,6 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { offerReviews, products, stores } from "../db/schema.js";
+import { aiReviewRuns, offerReviews, products, stores } from "../db/schema.js";
 import { formatCents } from "../lib/response.js";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
@@ -57,4 +57,40 @@ export async function decideReview(id: string, status: Exclude<ReviewStatus, "pe
     .where(eq(offerReviews.id, id))
     .returning({ id: offerReviews.id });
   return updated.length > 0;
+}
+
+/**
+ * How good the AI has been, judged by people's decisions. Every question on
+ * /pruefen is "Is this product X?":
+ * - AI suggested X (no rule matched): "yes" means the AI was right.
+ * - AI doubted a rule's X: "no" means the AI was right.
+ */
+export async function aiStats() {
+  const [decided] = await db
+    .select({
+      right: sql<number>`count(*) filter (where (${offerReviews.reason} like '%keine Regel%' and ${offerReviews.status} = 'approved')
+                                     or (${offerReviews.reason} not like '%keine Regel%' and ${offerReviews.status} = 'rejected'))`.mapWith(Number),
+      decided: sql<number>`count(*) filter (where ${offerReviews.status} <> 'pending')`.mapWith(Number),
+      pending: sql<number>`count(*) filter (where ${offerReviews.status} = 'pending')`.mapWith(Number),
+    })
+    .from(offerReviews)
+    .where(sql`${offerReviews.kind} = 'match' and ${offerReviews.reason} like 'KI%'`);
+  const runs = await db.select().from(aiReviewRuns).orderBy(desc(aiReviewRuns.createdAt)).limit(30);
+  return {
+    decisions: {
+      decided: decided.decided,
+      ai_right: decided.right,
+      pending: decided.pending,
+      precision: decided.decided ? decided.right / decided.decided : null,
+    },
+    runs: runs.map((r) => {
+      const matched = r.agree + r.aiOnly + r.rulesOnly;
+      return {
+        at: r.createdAt.toISOString(), model: r.model, names: r.names, agree: r.agree, both_none: r.bothNone,
+        ai_only: r.aiOnly, rules_only: r.rulesOnly, unsure: r.unsure,
+        agreement: matched ? r.agree / matched : null,
+        input_tokens: r.inputTokens, cached_tokens: r.cachedTokens, output_tokens: r.outputTokens,
+      };
+    }),
+  };
 }

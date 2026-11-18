@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchReviews, decideReview, type ReviewItem } from "../lib/api";
+import { fetchReviews, decideReview, fetchAiStats, type AiStats, type ReviewItem } from "../lib/api";
 import { StoreBadge } from "../components/StoreBadge";
 import { ErrorState } from "../components/ErrorState";
 import { Icon } from "../components/Icon";
@@ -25,6 +25,12 @@ export function ReviewPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [stats, setStats] = useState<AiStats | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchAiStats(token).then(setStats).catch(() => setStats(null));
+  }, [token, reload, items?.length]);
 
   useEffect(() => {
     if (!token) return;
@@ -96,6 +102,8 @@ export function ReviewPage() {
         </button>
       </header>
 
+      {stats && (stats.runs.length > 0 || stats.decisions.decided > 0) && <AiAccuracy stats={stats} />}
+
       {error && items !== null && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 
       {items === null ? (
@@ -139,5 +147,31 @@ export function ReviewPage() {
         </>
       )}
     </div>
+  );
+}
+
+const pct = (x: number | null) => (x === null ? "–" : `${Math.round(x * 100)} %`);
+
+/** How good the AI is: from your decisions (the real measure) and per run vs. the rules. */
+function AiAccuracy({ stats }: { stats: AiStats }) {
+  const { t } = useTranslation();
+  const last = stats.runs[0];
+  return (
+    <section aria-labelledby="ai-acc" className="grid gap-3 rounded-2xl border border-line bg-surface p-4 sm:grid-cols-2">
+      <div>
+        <h2 id="ai-acc" className="text-sm font-semibold text-ink-muted">{t("review.aiPrecision")}</h2>
+        <p className="tabular font-display text-3xl font-bold">{pct(stats.decisions.precision)}</p>
+        <p className="text-sm text-ink-muted">{t("review.aiPrecisionHint", { right: stats.decisions.ai_right, decided: stats.decisions.decided })}</p>
+      </div>
+      {last && (
+        <div>
+          <h2 className="text-sm font-semibold text-ink-muted">{t("review.aiAgreement")}</h2>
+          <p className="tabular font-display text-3xl font-bold">{pct(last.agreement)}</p>
+          <p className="text-sm text-ink-muted">
+            {t("review.aiAgreementHint", { names: last.names, runs: stats.runs.length, tokens: last.input_tokens + last.cached_tokens + last.output_tokens })}
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
