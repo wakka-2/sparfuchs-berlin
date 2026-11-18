@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { listReviews, decideReview } from "../services/review.service.js";
+import { listReviews, decideReview, aiStats } from "../services/review.service.js";
 import { success, error } from "../lib/response.js";
 
 /**
@@ -45,5 +45,7 @@ app.post("/reviews/:id", async (c) => {
   if (!(await decideReview(id, parsed.data.status))) return error(c, 404, "NOT_FOUND", "Review not found");
   return success(c, { id, status: parsed.data.status });
 });
+
+app.get("/ai-stats", async (c) => success(c, await aiStats()));
 
 export default app;

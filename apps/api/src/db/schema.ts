@@ -231,6 +231,22 @@ export const offerReviews = pgTable(
   (table) => [index("idx_offer_reviews_status").on(table.status)],
 );
 
+/** One row per AI review run: agreement with the catalog rules and token usage. */
+export const aiReviewRuns = pgTable("ai_review_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  model: varchar("model", { length: 50 }).notNull(),
+  names: integer("names").notNull(),
+  agree: integer("agree").notNull(),
+  bothNone: integer("both_none").notNull(),
+  aiOnly: integer("ai_only").notNull(),
+  rulesOnly: integer("rules_only").notNull(),
+  unsure: integer("unsure").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  cachedTokens: integer("cached_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+});
+
 /** The AI classifier's answer per offer name, so each name is asked once. */
 export const offerClassifications = pgTable("offer_classifications", {
   nameKey: varchar("name_key", { length: 300 }).primaryKey(),

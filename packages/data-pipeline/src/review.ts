@@ -111,8 +111,12 @@ export async function suggestMatchReviews(offersByStore: Map<string, Offer[]>): 
   const unseen = keys.filter((k) => !known.has(k)).slice(0, MAX_NEW_NAMES_PER_RUN).map((k) => byKey.get(k)!);
   if (unseen.length > 0) {
     let saved = 0;
+    const tokens = { input: 0, cached: 0, output: 0 };
     try {
-      await classifyNames(new Anthropic(), unseen, async (batch) => {
+      await classifyNames(new Anthropic(), unseen, async (batch, usage) => {
+        tokens.input += usage.input;
+        tokens.cached += usage.cached;
+        tokens.output += usage.output;
         const rows = [...batch].map(([nameKey, l]) => ({ nameKey, productName: l.product, confidence: l.confidence, model: MODEL }));
         if (rows.length) await db.insert(schema.offerClassifications).values(rows).onConflictDoNothing();
         for (const [k, l] of batch) known.set(k, l);
@@ -123,7 +127,12 @@ export async function suggestMatchReviews(offersByStore: Map<string, Offer[]>): 
       console.warn(`[review] AI stopped early after ${saved} names — ${error instanceof Error ? error.message : String(error)}`);
     }
     console.log(`[review] AI classified ${saved} new offer names (${keys.length - known.size} still to do)`);
-    logAgreement(offersByStore, known, new Set(unseen.map((u) => u.key)));
+    const stats = logAgreement(offersByStore, known, new Set(unseen.map((u) => u.key)));
+    if (stats.names > 0) {
+      await db.insert(schema.aiReviewRuns).values({
+        model: MODEL, ...stats, inputTokens: tokens.input, cachedTokens: tokens.cached, outputTokens: tokens.output,
+      });
+    }
   }
 
   const [stores, products] = await Promise.all([
@@ -149,6 +158,7 @@ export async function suggestMatchReviews(offersByStore: Map<string, Offer[]>): 
  * catalog rules — the quick precision check, printed to the run log.
  */
 function logAgreement(offersByStore: Map<string, Offer[]>, labels: Map<string, Label>, keys: Set<string>) {
+  // returns the counts so the run can be recorded
   const seen = new Set<string>();
   let agree = 0, aiOnly = 0, rulesOnly = 0, bothNone = 0, unsure = 0;
   const examples: string[] = [];
@@ -174,4 +184,5 @@ function logAgreement(offersByStore: Map<string, Offer[]>, labels: Map<string, L
       (matched ? ` — AI agrees with the rules on ${Math.round((100 * agree) / matched)} % of catalog matches` : ""),
   );
   for (const e of examples) console.log(`[review]   ${e}`);
+  return { names: seen.size, agree, bothNone, aiOnly, rulesOnly, unsure };
 }

@@ -18,7 +18,6 @@ describe("catalog rules", () => {
     ["SARTORI BellaVitano Espresso", 2.99, "je 100 g"],
     ["KLOSTERFRAU Heiße Zitrone-Echinacea", 2.99, "je 48 g"],
     ["K-WINTER EDITION Eierlikörfässchen", 3.99, "je 200-g-Packg."],
-    ["Wagner Big City Salami", 1.99, "je 415-g-Pckg."],
     ["LANDFREUDE Gefärbte Eier aus Bodenhaltung", 2.99, "10-Stück-Packung"],
     ["MEINE METZGEREI Paprika-Schinkengeschnetzeltes", 3.49, "500-g-Packung"],
     ["KIRI Mit Sahne", 2.79, "je 10 St. = 180-g-Packg."],
@@ -122,5 +121,16 @@ describe("catalog rules", () => {
     expect(matched(offer("LANGNESE Bienenhonig", 3.49, "je 500-g-Glas"))).toContain("Honig");
     expect(matched(offer("ALMARE Norwegischer Räucherlachs", 4.29, "200-g-Packung"))).toContain("Räucherlachs");
     expect(matched(offer("LANGNESE Cremissimo", 2.39, "je 900-ml-Packg."))).toContain("Eiscreme");
+  });
+
+  // Found by the AI review's first run (2026-11-18): rules that were wrong or missed.
+  it.each([
+    ["Innocent Smoothie Mango, Maracuja & Apfel", 2.99, "je 750-ml-Fl.", []],
+    ["Lenor Wäscheparfum", 6.99, "je 176-g-Dose", []],
+    ["Philadelphia", 1.29, "je 175-g-Pckg.", ["Frischkäse"]],
+    ["Lorenz Naturals", 1.79, "je 95-g-Btl.", ["Chips"]],
+    ["Wagner Big City Salami", 1.99, "je 415-g-Pckg.", ["TK-Pizza"]],
+  ])("AI finding: %s", (name, price, unit, want) => {
+    expect(matched(offer(name as string, price as number, unit as string))).toEqual(want);
   });
 });

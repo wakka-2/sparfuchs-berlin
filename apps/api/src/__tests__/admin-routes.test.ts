@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock("../services/review.service.js", () => ({ listReviews: vi.fn(), decideReview: vi.fn() }));
+vi.mock("../services/review.service.js", () => ({ listReviews: vi.fn(), decideReview: vi.fn(), aiStats: vi.fn() }));
 
 import { Hono } from "hono";
 import adminRouter from "../routes/admin.js";
@@ -58,6 +58,13 @@ describe("admin review routes", () => {
     });
     expect(res.status).toBe(code);
     expect(reviewService.decideReview).not.toHaveBeenCalled();
+  });
+
+  it("serves AI accuracy stats behind the same token", async () => {
+    vi.mocked(reviewService.aiStats).mockResolvedValue({ decisions: { decided: 4, ai_right: 3, pending: 2, precision: 0.75 }, runs: [] });
+    expect((await app.request("/api/v1/admin/ai-stats")).status).toBe(401);
+    const res = await app.request("/api/v1/admin/ai-stats", { headers: auth });
+    expect((await res.json()).data.decisions.precision).toBe(0.75);
   });
 
   it("404s an unknown item", async () => {
