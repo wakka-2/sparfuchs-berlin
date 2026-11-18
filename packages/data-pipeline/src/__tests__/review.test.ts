@@ -49,7 +49,7 @@ describe("rankOffers with review decisions", () => {
   });
 
   it("ignores an approval for a product that is not in the catalog", () => {
-    const decisions = { approved: new Map([["weideglück streichzart", new Set(["Margarine"])]]), rejected: new Map() };
+    const decisions = { approved: new Map([["weideglück streichzart", new Set(["Ketchup"])]]), rejected: new Map() };
     expect(rankOffers([odd], CATALOG, decisions).size).toBe(0);
   });
 });
@@ -105,7 +105,7 @@ describe("classifyNames", () => {
       parsed_output: { items: [
         { i: 0, product: "Butter", confidence: 1.4 },
         { i: 1, product: null, confidence: 0.9 },
-        { i: 2, product: "Margarine", confidence: 0.8 }, // not in the catalog
+        { i: 2, product: "Ketchup", confidence: 0.8 }, // not in the catalog
         { i: 9, product: "Butter", confidence: 0.9 },    // no such item
       ] },
     }]);
