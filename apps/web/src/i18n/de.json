@@ -92,7 +92,13 @@
     "splitHint_one": "in {{count}} Markt",
     "splitHint_other": "verteilt auf {{count}} Märkte — jedes Produkt dort, wo es am günstigsten ist",
     "noOfferFor": "Diese Woche in keinem Angebot: {{products}}",
-    "noneOnOffer": "Keines deiner Produkte ist diese Woche im Angebot. Schau nächste Woche wieder vorbei."
+    "noneOnOffer": "Keines deiner Produkte ist diese Woche im Angebot. Schau nächste Woche wieder vorbei.",
+    "oneStoreTitle": "Nur in einen Laden? Dann hierhin:",
+    "oneStoreCoverage": "{{covered}} von {{total}} Artikeln deiner Liste",
+    "oneStoreExtra": "{{extra}} mehr als die günstigste Aufteilung unten – dafür nur ein Weg.",
+    "oneStoreNoExtra": "Genauso günstig wie die Aufteilung auf mehrere Läden.",
+    "oneStoreMissing": "Dort ohne Preis: {{products}}",
+    "oneStoreCaveat": "Von REWE, Penny und Kaufland kennen wir nur die Wochenangebote, nicht die normalen Regalpreise. Aldi Nord veröffentlicht alle Preise – deshalb deckt es oft mehr ab."
   },
   "search": {
     "resultsFor": "Suchergebnisse für",

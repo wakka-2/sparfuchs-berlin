@@ -5,6 +5,7 @@ import { useBasketStore } from "../stores/basket";
 import { calculateBasket } from "../lib/api";
 import { Icon } from "../components/Icon";
 import { formatCents } from "../lib/format";
+import { pickOneStore } from "../lib/oneStore";
 
 /** Cheapest store per item this week, grouped by store — the real best buy. */
 function splitPlan(result: BasketResult, listNames: Map<string, string>) {
@@ -93,6 +94,7 @@ export function ShoppingListPage() {
   }
 
   const plan = result ? splitPlan(result, new Map(items.map((i) => [i.productId, i.name]))) : null;
+  const oneStore = result ? pickOneStore(result, items.length) : null;
 
   // Ranking only means something among stores that have every item.
   const totals = result
@@ -166,6 +168,29 @@ export function ShoppingListPage() {
           <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm text-red-800">{t("basket.failed")}</p>
         ) : (
           <>
+          {oneStore && (
+            <div className="mb-4 rounded-2xl border-2 border-brand-500 bg-surface p-5">
+              <p className="flex items-center gap-2 text-sm font-semibold text-brand-800">
+                <Icon name="store" className="h-4 w-4" />
+                {t("basket.oneStoreTitle")}
+              </p>
+              <p className="mt-1 font-display text-2xl font-bold">{oneStore.storeName}</p>
+              <p className="tabular mt-1 text-ink">
+                {t("basket.oneStoreCoverage", { covered: oneStore.covered, total: oneStore.listSize })}
+                {" · "}
+                <span className="font-semibold">{formatCents(oneStore.totalCents, i18n.language)}</span>
+              </p>
+              <p className="mt-1 text-sm text-ink-muted">
+                {oneStore.extraCents > 0
+                  ? t("basket.oneStoreExtra", { extra: formatCents(oneStore.extraCents, i18n.language) })
+                  : t("basket.oneStoreNoExtra")}
+              </p>
+              {oneStore.missing.length > 0 && (
+                <p className="mt-1 text-sm text-ink-muted">{t("basket.oneStoreMissing", { products: oneStore.missing.join(", ") })}</p>
+              )}
+              <p className="mt-3 border-t border-line pt-3 text-xs text-ink-subtle">{t("basket.oneStoreCaveat")}</p>
+            </div>
+          )}
           {plan && plan.stores.length > 0 && (
             <div className="mb-4 rounded-2xl bg-brand-800 p-5 text-white">
               <p className="text-sm text-brand-200">{t("basket.splitTitle")}</p>
