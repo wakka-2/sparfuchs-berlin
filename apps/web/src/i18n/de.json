@@ -67,7 +67,8 @@
     "viewOffer": "Angebot bei {{store}} ansehen",
     "regularPrice": "Dauerpreis",
     "offerUntil": "Angebot bis {{date}}",
-    "loose": "lose – Preis pro kg"
+    "loose": "lose – Preis pro kg",
+    "reweVaries": "Kann je REWE-Markt abweichen"
   },
   "basket": {
     "title": "Einkaufsliste",
@@ -124,7 +125,7 @@
     "title": "Über Sparfuchs Berlin",
     "intro": "Sparfuchs Berlin vergleicht die Wochenangebote der großen Supermärkte und die Dauerpreise von Aldi Nord. Jedes Angebot wird einem Produkt nur zugeordnet, wenn es wirklich dieses Produkt ist, und nach Preis pro Kilo, Liter oder Stück verglichen.",
     "dataSources": "Datenquellen",
-    "dataSourcesText": "Die Angebote stammen von rewe.de, penny.de, aldi-nord.de und kaufland.de, Dauerpreise vom Online-Sortiment von aldi-nord.de. Alles wird täglich um 05:00 Uhr abgerufen; abgelaufene Angebote verschwinden automatisch. REWE, Penny und Kaufland veröffentlichen online nur ihre Wochenangebote, deshalb gibt es Dauerpreise bisher nur von Aldi Nord.",
+    "dataSourcesText": "Die Angebote stammen von rewe.de, penny.de, aldi-nord.de und kaufland.de, Dauerpreise vom Online-Sortiment von aldi-nord.de. Bei Penny lesen wir die Angebote der Berliner Verkaufsregion, bei Kaufland die aller Berliner Filialen (nicht jede Filiale führt jedes Angebot). REWE-Märkte legen ihre Angebote einzeln fest; wir zeigen die bundesweiten REWE-Angebote, die nicht in jedem Markt gelten. Alles wird täglich abgerufen; abgelaufene Angebote verschwinden automatisch.",
     "disclaimer": "Haftungsausschluss",
     "disclaimerText": "Alle Preisangaben ohne Gewähr. Die tatsächlichen Preise im Geschäft können abweichen. Dies ist kein offizieller Dienst der genannten Händler.",
     "feedback": "Feedback",

@@ -122,3 +122,18 @@ describe("classifyNames", () => {
     expect((await classifyNames(client, items)).size).toBe(0);
   });
 });
+
+import { isBotCheck, offerDrop } from "../runner.js";
+
+describe("pipeline health", () => {
+  it("recognises a bot check as blocked, not as our failure", () => {
+    expect(isBotCheck('no offer tiles after 20s — page "Nur einen Moment…": Zeig uns, dass du ein Mensch bist.')).toBe(true);
+    expect(isBotCheck("aldi-nord: __NEXT_DATA__ not found — page structure changed")).toBe(false);
+  });
+
+  it("refuses to write when far fewer offers than last time arrive", () => {
+    expect(offerDrop(435, 120)).toMatch(/120 offers.*435/);
+    expect(offerDrop(435, 390)).toBeNull(); // normal week-to-week change
+    expect(offerDrop(undefined, 5)).toBeNull(); // first run
+  });
+});

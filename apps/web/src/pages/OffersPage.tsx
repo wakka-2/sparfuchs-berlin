@@ -243,6 +243,7 @@ function OfferCard({ offer, lang }: { offer: StoreOffer; lang: string }) {
             {offer.also_at.slice(0, 2).map((a) => t("offers.alsoAt", { store: a.store_name, price: a.price_formatted })).join(" · ")}
           </p>
         )}
+        {offer.store_slug === "rewe" && <p className="text-xs text-ink-subtle">{t("product.reweVaries")}</p>}
         <PriceKind price={offer} lang={lang} className="mt-auto pt-1" />
       </div>
     </>

@@ -67,6 +67,22 @@ export function isoWeek(isoDate: string): string {
   return `${d.getUTCFullYear()}-${String(week).padStart(2, "0")}`;
 }
 
+/**
+ * Penny's offers differ by selling region (44 in Germany). Berlin's stores all
+ * share one; pick the region most Berlin stores have, so a re-zoning is followed.
+ */
+export function berlinRegion(markets: Array<{ city?: string; sellingRegion?: string }>): string {
+  const counts = new Map<string, number>();
+  for (const m of markets) {
+    if (m.city?.trim().toLowerCase() === "berlin" && m.sellingRegion) {
+      counts.set(m.sellingRegion, (counts.get(m.sellingRegion) ?? 0) + 1);
+    }
+  }
+  const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+  if (!best) throw new Error("penny: no Berlin market in the market list — page structure changed");
+  return best[0];
+}
+
 export class PennySource implements StoreSource {
   readonly storeSlug = "penny";
 
@@ -75,10 +91,11 @@ export class PennySource implements StoreSource {
     const sections = parsePennySections(await fetchText(OFFERS_URL), today);
     if (sections.length === 0) throw new Error("penny: no flyer sections found — page structure changed");
 
+    const region = berlinRegion(JSON.parse(await fetchText(`${BASE}/.rest/market`)));
     const week = isoWeek(today);
     const byName = new Map<string, Offer>();
     for (const section of sections) {
-      const json = await fetchText(`${BASE}/.rest/offers/by-category/${week}/${section}`);
+      const json = await fetchText(`${BASE}/.rest/offers/by-category/${week}/${section}?region=${encodeURIComponent(region)}`);
       const tiles: PennyTile[] = JSON.parse(json).offerTiles ?? [];
       for (const offer of parsePennyTiles(tiles, saturdayOf(today))) {
         byName.set(`${offer.name}|${offer.unitText}`, offer);

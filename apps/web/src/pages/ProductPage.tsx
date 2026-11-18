@@ -112,6 +112,7 @@ export function ProductPage() {
                     <p className="tabular font-display text-2xl font-bold">{priceLines(price).main}</p>
                     {!isLoose(price.unit_size) && <p className="tabular text-sm font-semibold text-ink-muted">{price.unit_price_formatted}</p>}
                     <PriceKind price={price} lang={i18n.language} className="mt-0.5 justify-end" />
+                    {price.store_slug === "rewe" && <p className="mt-0.5 text-xs text-ink-subtle">{t("product.reweVaries")}</p>}
                   </div>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas" aria-hidden="true">

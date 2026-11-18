@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseAldi, parseAldiCategory } from "../sources/aldi.js";
-import { parseKaufland } from "../sources/kaufland.js";
-import { parsePennySections, parsePennyTiles, isoWeek } from "../sources/penny.js";
+import { parseKaufland, berlinStoreIds, mergeBranches } from "../sources/kaufland.js";
+import { parsePennySections, parsePennyTiles, isoWeek, berlinRegion } from "../sources/penny.js";
 import { parseReweTiles } from "../sources/rewe.js";
 import { saturdayOf } from "../http.js";
 
@@ -131,5 +131,25 @@ describe("saturdayOf", () => {
   it("ends the flyer week on Saturday", () => {
     expect(saturdayOf("2026-11-17")).toBe("2026-11-21");
     expect(saturdayOf("2026-11-21")).toBe("2026-11-21");
+  });
+});
+
+describe("Berlin, not the national default", () => {
+  it("picks the selling region most Berlin Penny stores share", () => {
+    expect(berlinRegion([
+      { city: "Berlin", sellingRegion: "15A-01-56" }, { city: "Berlin", sellingRegion: "15A-01-56" },
+      { city: "Berlin", sellingRegion: "15A-02-11" }, { city: "Delmenhorst", sellingRegion: "15A-08-26" },
+    ])).toBe("15A-01-56");
+    expect(() => berlinRegion([{ city: "Hamburg", sellingRegion: "X" }])).toThrow(/no Berlin market/);
+  });
+
+  it("lists Kaufland's Berlin branches only", () => {
+    expect(berlinStoreIds([{ n: "DE1643", t: "Berlin" }, { n: "DE1403", t: "Bottrop" }, { n: "DE4043", t: " berlin " }])).toEqual(["DE1643", "DE4043"]);
+  });
+
+  it("merges branches: every offer once, the price most branches charge", () => {
+    const o = (name: string, price: number) => ({ name, price, unitText: "je 250 g" });
+    const merged = mergeBranches([[o("Butter", 1.29), o("Käse", 2.99)], [o("Butter", 1.29)], [o("Butter", 1.49), o("Milch", 0.99)]]);
+    expect(merged.map((x) => `${x.name} ${x.price}`).sort()).toEqual(["Butter 1.29", "Käse 2.99", "Milch 0.99"]);
   });
 });

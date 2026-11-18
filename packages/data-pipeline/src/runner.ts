@@ -1,4 +1,4 @@
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { closeBrowser } from "./browser.js";
 import { rankOffers, priceProblem, CATALOG } from "./catalog.js";
@@ -68,8 +68,23 @@ export async function runPipelineForStore(
     if (offers.length === 0) throw new Error("store returned 0 offers — scraper needs attention");
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error(`[pipeline] ${source.storeSlug}: FAILED — ${msg}`);
-    return finish({ status: "failed", productsFetched: 0, productsUpdated: 0, productsFailed: 0, errors: [msg] });
+    const status = isBotCheck(msg) ? "blocked" : "failed";
+    console.error(`[pipeline] ${source.storeSlug}: ${status.toUpperCase()} — ${msg}`);
+    return finish({ status, productsFetched: 0, productsUpdated: 0, productsFailed: 0, errors: [msg] });
+  }
+
+  // Health check before writing anything: a page that loaded only partly would
+  // otherwise delete the prices of every product it did not show.
+  const [previous] = await db
+    .select({ fetched: schema.pipelineRuns.productsFetched })
+    .from(schema.pipelineRuns)
+    .where(and(eq(schema.pipelineRuns.storeId, store.id), eq(schema.pipelineRuns.status, "success")))
+    .orderBy(desc(schema.pipelineRuns.startedAt))
+    .limit(1);
+  const drop = offerDrop(previous?.fetched, offers.length);
+  if (drop) {
+    console.error(`[pipeline] ${source.storeSlug}: FAILED health check — ${drop}`);
+    return finish({ status: "failed", productsFetched: offers.length, productsUpdated: 0, productsFailed: 0, errors: [drop] });
   }
 
   try {
@@ -327,7 +342,11 @@ export async function runOnce(sources: StoreSource[]): Promise<void> {
       );
       for (const e of r.errors) console.log(`    ! ${e}`);
     }
+    // A bot check is reported, but only our own failures make the run red
+    // (and send GitHub's failure email).
     failed = results.some((r) => r.status === "failed");
+    const blocked = results.filter((r) => r.status === "blocked").map((r) => r.storeSlug);
+    if (blocked.length) console.warn(`[pipeline] WARNING: blocked by a bot check, prices kept until they expire: ${blocked.join(", ")}`);
   } finally {
     await closeBrowser().catch((err: unknown) =>
       console.warn(`[pipeline] Failed to close browser: ${String(err)}`),
@@ -335,4 +354,17 @@ export async function runOnce(sources: StoreSource[]): Promise<void> {
     await closeDb();
   }
   if (failed) process.exitCode = 1;
+}
+
+/** The store answered with a "prove you're human" page rather than its offers. */
+export function isBotCheck(message: string): boolean {
+  return /mensch bist|captcha|are you (a )?human|access denied|zugriff verweigert|nur einen moment/i.test(message);
+}
+
+/** Why this run's offer count is not believable next to the last good run, or null. */
+export function offerDrop(previous: number | undefined, now: number): string | null {
+  if (!previous || previous < 20) return null; // too little history to judge
+  return now < previous * 0.6
+    ? `only ${now} offers, last good run had ${previous} (more than 40 % fewer) — page probably loaded partly; nothing written`
+    : null;
 }
