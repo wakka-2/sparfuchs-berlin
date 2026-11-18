@@ -92,7 +92,13 @@
     "splitHint_one": "at {{count}} store",
     "splitHint_other": "split across {{count}} stores — each item where it is cheapest",
     "noOfferFor": "Not on offer anywhere this week: {{products}}",
-    "noneOnOffer": "None of your items is on offer this week. Check back next week."
+    "noneOnOffer": "None of your items is on offer this week. Check back next week.",
+    "oneStoreTitle": "Only going to one shop? Go here:",
+    "oneStoreCoverage": "{{covered}} of {{total}} items on your list",
+    "oneStoreExtra": "{{extra}} more than the cheapest split below – but just one trip.",
+    "oneStoreNoExtra": "As cheap as splitting across several shops.",
+    "oneStoreMissing": "No price there for: {{products}}",
+    "oneStoreCaveat": "For REWE, Penny and Kaufland we only know their weekly offers, not their regular shelf prices. Aldi Nord publishes all its prices – that is why it often covers more."
   },
   "search": {
     "resultsFor": "Results for",
