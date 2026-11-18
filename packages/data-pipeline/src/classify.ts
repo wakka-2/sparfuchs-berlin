@@ -139,3 +139,44 @@ export function matchReviews(
   }
   return reviews;
 }
+
+export interface JudgeCase {
+  offerName: string;
+  unitText: string;
+  priceText: string;
+  product: string;
+}
+
+const Verdicts = z.object({
+  items: z.array(z.object({ i: z.number().int(), is_product: z.boolean(), confidence: z.number() })),
+});
+
+const JUDGE = `You settle disagreements for a German supermarket price-comparison site. For each numbered case, decide: is this offer the catalog product named — the same thing a shopper looking for that product would buy instead, in any brand, size or organic variant?
+
+It is NOT the product when it is a dish, snack, drink, sauce or ready meal containing it, a flavoured or processed variant shoppers would not substitute, a different cut or animal, pet food, a non-food item, or an accessory. Brand names count: "Philadelphia" is cream cheese, "Wagner Big City" is a frozen pizza.
+
+Be strict: a wrong "yes" puts a wrong price on the site; a wrong "no" only leaves a gap. "confidence" is 0 to 1. Answer every number once.`;
+
+/** A second, careful AI opinion on "is this offer product X?". Missing answers are absent. */
+export async function judgeCases(client: Anthropic, cases: JudgeCase[]): Promise<Map<number, { yes: boolean; confidence: number }>> {
+  const out = new Map<number, { yes: boolean; confidence: number }>();
+  if (cases.length === 0) return out;
+  const list = cases.map((c, i) => `${i}. Offer: "${c.offerName}" (${c.unitText}, ${c.priceText}) — product: "${c.product}"`).join("\n");
+  const response = await client.beta.messages.parse({
+    model: MODEL,
+    max_tokens: 16000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system: JUDGE,
+    messages: [{ role: "user", content: `Cases:\n${list}` }],
+    // More deliberate than the bulk classification: few cases, each one decides a price.
+    output_config: { effort: "medium", format: betaZodOutputFormat(Verdicts) },
+  });
+  const u = response.usage;
+  console.log(`[judge] ${cases.length} cases, ${u.input_tokens} in / ${u.output_tokens} out tokens`);
+  if (response.stop_reason === "refusal" || !response.parsed_output) return out;
+  for (const v of response.parsed_output.items) {
+    if (cases[v.i]) out.set(v.i, { yes: v.is_product, confidence: Math.max(0, Math.min(1, v.confidence)) });
+  }
+  return out;
+}

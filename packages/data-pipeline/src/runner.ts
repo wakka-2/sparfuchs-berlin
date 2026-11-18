@@ -2,7 +2,7 @@ import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db, schema, closeDb } from "./db.js";
 import { closeBrowser } from "./browser.js";
 import { rankOffers, priceProblem, CATALOG } from "./catalog.js";
-import { suggestMatchReviews, loadDecisions, queueReview, priceKey } from "./review.js";
+import { suggestMatchReviews, loadDecisions, queueReview, priceKey, acceptRepeatedJump } from "./review.js";
 import type { Offer, StoreSource, PipelineRunResult } from "./types.js";
 import { berlinDate, saturdayOf } from "./http.js";
 import { offerFacts } from "./offerFacts.js";
@@ -136,7 +136,15 @@ export async function runPipelineForStore(
         cand.unitPrice,
         sameListing ? match.previousUnitCents! / 100 : null,
       );
-      if (!problem || approvedPrices.has(priceKey(cand.offer.name, match.productId, toCents(cand.offer.price)))) {
+      const key = priceKey(cand.offer.name, match.productId, toCents(cand.offer.price));
+      if (!problem || approvedPrices.has(key)) {
+        hit = cand;
+        break;
+      }
+      // A jump (price inside the plausible range) that was already held on an
+      // earlier run and is still there now is a real price change: accept it.
+      // A price outside the range is never accepted automatically.
+      if (!priceProblem(match.productName, cand.unitPrice, null) && (await acceptRepeatedJump(key))) {
         hit = cand;
         break;
       }

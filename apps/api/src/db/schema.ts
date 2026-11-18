@@ -227,6 +227,8 @@ export const offerReviews = pgTable(
     status: varchar("status", { length: 10 }).$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** human | ai-judge | auto-repeat */
+    decidedBy: varchar("decided_by", { length: 20 }),
   },
   (table) => [index("idx_offer_reviews_status").on(table.status)],
 );

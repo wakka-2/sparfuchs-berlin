@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { bestOffers } from "../catalog.js";
+import { bestOffers, ruleMatches } from "../catalog.js";
+import { GOLD } from "../eval/gold.js";
 import type { Offer } from "../types.js";
 
 const offer = (name: string, price: number, unitText: string, baseText?: string): Offer => ({
@@ -132,5 +133,13 @@ describe("catalog rules", () => {
     ["Wagner Big City Salami", 1.99, "je 415-g-Pckg.", ["TK-Pizza"]],
   ])("AI finding: %s", (name, price, unit, want) => {
     expect(matched(offer(name as string, price as number, unit as string))).toEqual(want);
+  });
+
+  it("scores 100 % on the hand-checked test set", () => {
+    const wrong = GOLD.filter((g) => {
+      const got = ruleMatches({ name: g.name, price: 1, unitText: g.unitText });
+      return g.product ? !got.includes(g.product) : got.length > 0;
+    }).map((g) => `${g.name} → ${ruleMatches({ name: g.name, price: 1, unitText: g.unitText }).join(", ") || "none"} (want ${g.product ?? "none"})`);
+    expect(wrong).toEqual([]);
   });
 });
